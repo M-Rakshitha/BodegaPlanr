@@ -6,6 +6,8 @@ Starter monorepo for **Corner Store Planning**, with separate frontend and backe
 
 - `/frontend` — Next.js + Tailwind UI starter for the report wizard, customer data mode, and RAG chat.
 - `/backend` — FastAPI service starter for agent orchestration endpoints and data integrations.
+- `/backend/app/agents/agent1` — Agent 1 implementation owned independently.
+- `/backend/app/agents/agent2-4` — reserved folders so each agent can be worked on without merge conflicts.
 
 ## Product Scope (Build Spec)
 
