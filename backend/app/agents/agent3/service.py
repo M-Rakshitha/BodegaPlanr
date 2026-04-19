@@ -68,11 +68,16 @@ class ReligiousHolidayCalendarBuilder:
             "Easter": 1,
         }
 
-    async def build_calendar(self, profile: DemographicProfileResponse, horizon_days: int = 90) -> HolidayCalendarResponse:
+    async def build_calendar(self, profile: DemographicProfileResponse, horizon_days: int = 90, progress: Any | None = None) -> HolidayCalendarResponse:
+        async def emit(msg: str) -> None:
+            if progress:
+                await progress(msg)
+
         today = datetime.now(timezone.utc).date()
         window_start = today
         window_end = today + timedelta(days=horizon_days)
 
+        await emit("Scanning demographic profile...")
         top_religions = self._get_top_religion_rows(profile)
         top_races = self._get_top_race_rows(profile)
         religion_labels_by_tradition = self._build_religion_labels_by_tradition(top_religions)
@@ -91,6 +96,7 @@ class ReligiousHolidayCalendarBuilder:
         raw_events: list[RawHoliday] = []
 
         if "jewish" in candidate_traditions:
+            await emit("Fetching Jewish holiday calendar...")
             hebcal_events, hebcal_error = await self._fetch_hebcal_holidays(window_start, window_end)
             if hebcal_error:
                 data_gaps.append(hebcal_error)
@@ -99,6 +105,7 @@ class ReligiousHolidayCalendarBuilder:
                 raw_events.extend(hebcal_events)
 
         if "islamic" in candidate_traditions:
+            await emit("Fetching Islamic holiday calendar...")
             islamic_events, islamic_error = await self._fetch_aladhan_holidays(window_start, window_end)
             if islamic_error:
                 data_gaps.append(islamic_error)
@@ -107,6 +114,7 @@ class ReligiousHolidayCalendarBuilder:
                 raw_events.extend(islamic_events)
 
         if "christian" in candidate_traditions or bool(top_races):
+            await emit("Fetching public holidays...")
             public_events, public_error = await self._fetch_nager_holidays(window_start, window_end)
             if public_error:
                 data_gaps.append(public_error)
@@ -118,6 +126,7 @@ class ReligiousHolidayCalendarBuilder:
         gemini_supported_traditions = {"hindu", "sikh", "community"}
         missing_traditions = sorted((candidate_traditions - covered_traditions) & gemini_supported_traditions)
         if missing_traditions:
+            await emit(f"Generating AI holiday events for {', '.join(missing_traditions)}...")
             ai_events, ai_error, ai_attempted = await self._gemini_generate_holiday_events_batch(
                 start=window_start,
                 end=window_end,
@@ -138,6 +147,7 @@ class ReligiousHolidayCalendarBuilder:
 
         # If religion data is absent but race data exists, use race-grounded community holiday fallback.
         if not candidate_traditions and top_races:
+            await emit("Generating AI community holiday events...")
             community_events, community_error, community_attempted = await self._gemini_generate_holiday_events_batch(
                 start=window_start,
                 end=window_end,
@@ -161,6 +171,7 @@ class ReligiousHolidayCalendarBuilder:
                 "No religion distribution available from Agent 1 profile; using race-based community holiday fallback when possible."
             )
 
+        await emit("Scoring demand events...")
         raw_events, enrichment_error, enrichment_attempted = await self._enrich_demand_signals_batch(
             events=raw_events,
             top_religions=[row.group for row in top_religions],

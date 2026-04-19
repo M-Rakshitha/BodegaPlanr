@@ -1611,7 +1611,12 @@ class VendorInventoryRecommender:
     def generate_recommendations(self, request: Agent4Request) -> Agent4Output:
         return asyncio.run(self.generate_recommendations_async(request))
 
-    async def generate_recommendations_async(self, request: Agent4Request) -> Agent4Output:
+    async def generate_recommendations_async(self, request: Agent4Request, progress: Any | None = None) -> Agent4Output:
+        async def emit(msg: str) -> None:
+            if progress:
+                await progress(msg)
+
+        await emit("Analyzing product categories...")
         max_demand_multiplier = 1.0
         for holiday in request.holidays:
             if holiday.demand_multiplier > max_demand_multiplier:
@@ -1625,8 +1630,10 @@ class VendorInventoryRecommender:
         if not all_items:
             return Agent4Output(recommendations=[])
 
+        await emit("Generating vendor recommendations...")
         category_context = json.dumps([cat.model_dump() for cat in strong_categories], indent=2, ensure_ascii=False)
         grounded_products = await _process_requested_items_with_llm(all_items, request.location_zip, category_context)
+        await emit("Finalizing pricing and margins...")
 
         recommendations: list[Agent4Recommendation] = []
         for prod in grounded_products:

@@ -146,9 +146,10 @@ export default function Home() {
           </p>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {modes.map((mode) => (
-              <div
+              <Link
                 key={mode.href}
-                className={`flex flex-col rounded-2xl border p-7 backdrop-blur-sm ${
+                href={mode.href}
+                className={`group flex flex-col rounded-2xl border p-7 backdrop-blur-sm transition-shadow hover:shadow-md ${
                   mode.highlight ? 'border-white/60 bg-white/80' : 'border-white/40 bg-white/60'
                 }`}
               >
@@ -157,9 +158,12 @@ export default function Home() {
                     Core Feature
                   </span>
                 )}
-                <h3 className="text-base font-semibold text-slate-900">{mode.label}</h3>
+                <h3 className="text-base font-semibold text-slate-900 group-hover:text-brand-700 transition-colors">{mode.label}</h3>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-900">{mode.description}</p>
-              </div>
+                <p className="mt-4 text-xs font-medium text-brand-600 opacity-0 transition-opacity group-hover:opacity-100">
+                  Open →
+                </p>
+              </Link>
             ))}
           </div>
         </div>
