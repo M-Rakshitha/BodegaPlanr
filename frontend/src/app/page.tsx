@@ -74,18 +74,18 @@ export default function Home() {
       {/* Hero */}
       <section className="relative overflow-hidden px-6 pb-36 pt-28 text-center">
         <div className="relative mx-auto max-w-4xl">
-          <p className="text-xs font-semibold uppercase tracking-widest text-green-700/60">
+          <p className="text-xs font-semibold uppercase tracking-widest text-brand-700/60">
             BodegaPlanr
           </p>
 
-          <h1 className="mt-5 text-6xl font-bold leading-tight tracking-tight text-green-800/50 sm:text-7xl">
+          <h1 className="mt-5 text-6xl font-bold leading-tight tracking-tight text-brand-800/50 sm:text-7xl">
             The planning platform for
           </h1>
           <h1 className="text-6xl font-bold leading-tight tracking-tight text-slate-900 sm:text-7xl">
             Corner Store Owners.
           </h1>
 
-          <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-slate-600">
+          <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-slate-900">
             Four AI agents that analyze your neighborhood — demographics, buying behavior,
             religious holidays, and vendor pricing — so you always stock the right products.
           </p>
@@ -95,7 +95,7 @@ export default function Home() {
               href="/vendor"
               className="rounded-full bg-slate-900 px-8 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-700"
             >
-              Vendor log in
+              Vendor Login
             </Link>
           </div>
         </div>
@@ -104,10 +104,10 @@ export default function Home() {
       {/* 4-Agent Pipeline */}
       <section className="px-6 py-20">
         <div className="mx-auto max-w-6xl">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-900">
             The 4-Agent Pipeline
           </p>
-          <p className="mt-2 max-w-xl text-slate-500">
+          <p className="mt-2 max-w-xl text-slate-900">
             Each report runs four agents in sequence, combining public data sources with AI reasoning.
           </p>
 
@@ -122,10 +122,10 @@ export default function Home() {
                       <p className="text-5xl font-bold text-slate-900">{agent.num}</p>
                     </div>
                     <h3 className="mt-8 text-xl font-semibold text-slate-900">{agent.name}</h3>
-                    <p className="mt-3 text-sm leading-6 text-slate-500">{agent.description}</p>
+                    <p className="mt-3 text-sm leading-6 text-slate-900">{agent.description}</p>
                     <div className="mt-auto flex flex-wrap gap-2">
                       {agent.sources.map((s) => (
-                        <span key={s} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+                        <span key={s} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-900">
                           {s}
                         </span>
                       ))}
@@ -141,7 +141,7 @@ export default function Home() {
       {/* Three Modes */}
       <section className="border-t border-white/30 px-6 py-20">
         <div className="mx-auto max-w-6xl">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-900">
             Three Ways to Use BodegaPlanr
           </p>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -153,12 +153,12 @@ export default function Home() {
                 }`}
               >
                 {mode.highlight && (
-                  <span className="mb-3 self-start rounded-full bg-green-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+                  <span className="mb-3 self-start rounded-full bg-brand-600 px-2.5 py-0.5 text-xs font-semibold text-white">
                     Core Feature
                   </span>
                 )}
                 <h3 className="text-base font-semibold text-slate-900">{mode.label}</h3>
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">{mode.description}</p>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-900">{mode.description}</p>
               </div>
             ))}
           </div>
@@ -168,12 +168,12 @@ export default function Home() {
       {/* Data sources */}
       <section className="border-t border-white/30 px-6 py-14 text-center">
         <div className="mx-auto max-w-4xl">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-900">
             Powered by public data sources
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-8">
             {['US Census Bureau', 'ARDA', 'Consumer Expenditure Survey', 'Hebcal', 'Aladhan', 'UNFI', 'Faire', 'RangeMe'].map((src) => (
-              <span key={src} className="text-sm font-medium text-slate-400">{src}</span>
+              <span key={src} className="text-sm font-medium text-slate-900">{src}</span>
             ))}
           </div>
         </div>
@@ -182,8 +182,8 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-white/30 px-6 py-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <span className="text-sm font-semibold text-green-700">BodegaPlanr</span>
-          <span className="text-xs text-slate-400">Hackathon MVP &copy; 2026</span>
+          <span className="text-sm font-semibold text-brand-700">BodegaPlanr</span>
+          <span className="text-xs text-slate-900">Hackathon MVP &copy; 2026</span>
         </div>
       </footer>
     </div>

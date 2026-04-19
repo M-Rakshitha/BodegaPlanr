@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 const publicLinks = [
   { href: '/', label: 'Home' },
@@ -25,13 +25,17 @@ export default function Nav() {
   const pathname = usePathname();
   const isVendor = pathname.startsWith('/vendor');
 
-  const [vendorName, setVendorName] = useState<string | null>(null);
-  useEffect(() => {
+  const [vendorName, setVendorName] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
     try {
       const raw = sessionStorage.getItem('bodega_vendor');
-      if (raw) setVendorName(JSON.parse(raw).name);
-    } catch {}
-  }, [pathname]);
+      return raw ? JSON.parse(raw).name : null;
+    } catch {
+      return null;
+    }
+  });
+
+  if (pathname !== '/') return null;
 
   const handleLogout = () => {
     sessionStorage.removeItem('bodega_vendor');
@@ -43,7 +47,7 @@ export default function Nav() {
     <div className="fixed inset-x-4 top-4 z-50 sm:inset-x-6 lg:inset-x-10">
       <nav className="flex h-14 items-center justify-between rounded-2xl bg-white/30 px-5 shadow-sm backdrop-blur-md ring-1 ring-white/50">
         <Link href="/" className="flex shrink-0 items-center">
-          <span className="font-bold tracking-tight text-green-700">BodegaPlanr</span>
+          <span className="font-bold tracking-tight text-brand-700">BodegaPlanr</span>
         </Link>
 
         {!isVendor && (
@@ -54,7 +58,7 @@ export default function Nav() {
                 href={href}
                 className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
                   pathname === href
-                    ? 'bg-green-50 text-green-700'
+                    ? 'bg-brand-50 text-brand-700'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                 }`}
               >
@@ -75,10 +79,10 @@ export default function Nav() {
               </Link>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 rounded-full bg-slate-100 pl-4 pr-1.5 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200"
+                className="flex items-center gap-2 rounded-full bg-brand-600 pl-4 pr-1.5 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700"
               >
                 Log Out
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-white">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-brand-700">
                   <ArrowIcon />
                 </span>
               </button>
@@ -86,9 +90,9 @@ export default function Nav() {
           ) : (
             <Link
               href="/vendor"
-              className="flex items-center gap-2 rounded-full bg-green-50 pl-4 pr-1.5 py-1.5 text-sm font-semibold text-green-800 transition-colors hover:bg-green-100"
+              className="flex items-center gap-2 rounded-full bg-brand-50 pl-4 pr-1.5 py-1.5 text-sm font-semibold text-brand-800 transition-colors hover:bg-brand-100"
             >
-              Vendor log in
+              Login/SignUp
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white">
                 <ArrowIcon />
               </span>

@@ -30,7 +30,7 @@ export default function DataPage() {
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-10">
       <div className="mx-auto max-w-4xl">
-        <p className="text-xs font-semibold uppercase tracking-widest text-green-600">Customer Data Mode</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Customer Data Mode</p>
         <h1 className="mt-1 text-3xl font-bold text-slate-900">Sales Delta Analysis</h1>
         <p className="mt-2 text-sm text-slate-500">
           Upload your sales CSV to track buying trends and compare periods side-by-side.
@@ -45,8 +45,8 @@ export default function DataPage() {
               onClick={() => setUploaded(true)}
               className={`mt-10 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed py-24 text-center transition-all ${
                 dragging
-                  ? 'border-green-400 bg-green-50'
-                  : 'border-slate-300 bg-white hover:border-green-300 hover:bg-green-50/40'
+                  ? 'border-brand-400 bg-brand-50'
+                  : 'border-slate-300 bg-white hover:border-brand-300 hover:bg-brand-50/40'
               }`}
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-2xl text-slate-400 mb-4">
@@ -56,7 +56,7 @@ export default function DataPage() {
               <p className="mt-1 text-sm text-slate-400">or click to select &nbsp;&middot;&nbsp; CSV files only</p>
               <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-5 py-3 text-left">
                 <p className="text-xs font-medium text-slate-400 mb-1">Expected columns</p>
-                <code className="text-xs text-green-700">product, category, units_sold, period</code>
+                <code className="text-xs text-brand-700">product, category, units_sold, period</code>
               </div>
             </div>
 
@@ -100,7 +100,7 @@ export default function DataPage() {
             {/* Summary cards */}
             <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className={`text-2xl font-bold ${Number(pctChange) >= 0 ? 'text-green-600' : 'text-rose-500'}`}>
+                <p className={`text-2xl font-bold ${Number(pctChange) >= 0 ? 'text-brand-600' : 'text-rose-500'}`}>
                   {Number(pctChange) >= 0 ? '+' : ''}{pctChange}%
                 </p>
                 <p className="mt-0.5 text-xs text-slate-400">Total Units Change</p>
@@ -110,7 +110,7 @@ export default function DataPage() {
                 <p className="mt-0.5 text-xs text-slate-400">Products Growing</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-2xl font-bold text-green-600">+25</p>
+                <p className="text-2xl font-bold text-brand-600">+25</p>
                 <p className="mt-0.5 text-xs text-slate-400">Biggest Gain (Monster)</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -127,7 +127,7 @@ export default function DataPage() {
                   onClick={() => setFilter(cat)}
                   className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
                     filter === cat
-                      ? 'bg-green-100 text-green-700 ring-1 ring-green-300'
+                      ? 'bg-brand-100 text-brand-700 ring-1 ring-brand-300'
                       : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:text-slate-700'
                   }`}
                 >
@@ -160,7 +160,7 @@ export default function DataPage() {
                       <td className="px-4 py-3 text-slate-400">{row.category}</td>
                       <td className="px-4 py-3 text-right text-slate-400">{row.jan}</td>
                       <td className="px-4 py-3 text-right text-slate-600">{row.feb}</td>
-                      <td className={`px-4 py-3 text-right font-semibold ${row.delta > 0 ? 'text-green-600' : 'text-rose-500'}`}>
+                      <td className={`px-4 py-3 text-right font-semibold ${row.delta > 0 ? 'text-brand-600' : 'text-rose-500'}`}>
                         {row.delta > 0 ? '+' : ''}{row.delta}
                       </td>
                     </tr>
@@ -169,7 +169,7 @@ export default function DataPage() {
               </table>
             </div>
 
-            <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-slate-700">
+            <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-slate-700">
               Beverages are your fastest-growing category (+9.3% on average). Consider increasing order
               quantities on Monster Energy and Goya Coconut Water before the next period.
             </div>

@@ -104,11 +104,11 @@ export default function ChatPage() {
               key={r.id}
               className={`w-full rounded-lg px-3 py-2.5 text-left transition-all ${
                 r.active
-                  ? 'bg-green-50 ring-1 ring-green-200'
+                  ? 'bg-brand-50 ring-1 ring-brand-200'
                   : 'hover:bg-slate-50'
               }`}
             >
-              <p className={`text-sm font-medium ${r.active ? 'text-green-700' : 'text-slate-600'}`}>
+              <p className={`text-sm font-medium ${r.active ? 'text-brand-700' : 'text-slate-600'}`}>
                 {r.name}
               </p>
               <p className="mt-0.5 text-xs text-slate-400">ZIP {r.zip} &middot; {r.date}</p>
@@ -118,7 +118,7 @@ export default function ChatPage() {
         <div className="border-t border-slate-200 p-3">
           <Link
             href="/wizard"
-            className="block w-full rounded-lg border border-slate-200 py-2 text-center text-xs font-medium text-slate-500 transition-colors hover:border-green-300 hover:text-green-700"
+            className="block w-full rounded-lg border border-slate-200 py-2 text-center text-xs font-medium text-slate-500 transition-colors hover:border-brand-300 hover:text-brand-700"
           >
             + Generate New Report
           </Link>
@@ -138,14 +138,14 @@ export default function ChatPage() {
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {m.role === 'assistant' && (
-                <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-100">
-                  <span className="text-xs font-bold text-green-700">B</span>
+                <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-100">
+                  <span className="text-xs font-bold text-brand-700">B</span>
                 </div>
               )}
               <div
                 className={`max-w-xl space-y-0.5 rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   m.role === 'user'
-                    ? 'rounded-tr-sm bg-green-600 text-white'
+                    ? 'rounded-tr-sm bg-brand-600 text-white'
                     : 'rounded-tl-sm bg-white text-slate-700 shadow-sm ring-1 ring-slate-100'
                 }`}
               >
@@ -156,8 +156,8 @@ export default function ChatPage() {
 
           {loading && (
             <div className="flex justify-start">
-              <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-100">
-                <span className="text-xs font-bold text-green-700">B</span>
+              <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-100">
+                <span className="text-xs font-bold text-brand-700">B</span>
               </div>
               <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100">
                 {[0, 1, 2].map((j) => (
@@ -181,7 +181,7 @@ export default function ChatPage() {
               <button
                 key={s}
                 onClick={() => send(s)}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 transition-colors hover:border-green-300 hover:text-green-700"
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 transition-colors hover:border-brand-300 hover:text-brand-700"
               >
                 {s}
               </button>
@@ -203,12 +203,12 @@ export default function ChatPage() {
               }}
               placeholder="Ask about your report..."
               rows={1}
-              className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-green-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
+              className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-400"
             />
             <button
               onClick={() => send()}
               disabled={!input.trim() || loading}
-              className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-green-700 disabled:opacity-40"
+              className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-700 disabled:opacity-40"
             >
               Send
             </button>

@@ -16,7 +16,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
         <Nav />
-        <div className="pt-24">{children}</div>
+        {children}
       </body>
     </html>
   );

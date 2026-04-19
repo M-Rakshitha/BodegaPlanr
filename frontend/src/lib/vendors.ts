@@ -87,8 +87,30 @@ export const VENDORS: Record<string, Vendor> = {
 };
 
 export function authenticate(id: string, password: string): Vendor | null {
-  const vendor = VENDORS[id.toLowerCase().trim()];
+  const key = id.toLowerCase().trim();
+  const vendor = VENDORS[key] ?? getCustomVendors()[key];
   if (!vendor) return null;
   if (vendor.password !== password) return null;
   return vendor;
+}
+
+export function getCustomVendors(): Record<string, Vendor> {
+  try {
+    const raw = sessionStorage.getItem('bodega_custom_vendors');
+    return raw ? (JSON.parse(raw) as Record<string, Vendor>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveCustomVendor(vendor: Vendor): void {
+  try {
+    const existing = getCustomVendors();
+    existing[vendor.id] = vendor;
+    sessionStorage.setItem('bodega_custom_vendors', JSON.stringify(existing));
+  } catch {}
+}
+
+export function lookupVendor(id: string): Vendor | null {
+  return VENDORS[id] ?? getCustomVendors()[id] ?? null;
 }
