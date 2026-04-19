@@ -118,37 +118,9 @@ class DemographicProfiler:
             zip_code = request.zip_code.strip()
             if not zip_code:
                 raise ValueError("ZIP code cannot be blank.")
-            state_fips, county_fips = await self._resolve_county_for_zip(zip_code, sources)
-            return Geography(
-                display_name=zip_code,
-                geography_type="zip",
-                zip_code=zip_code,
-                state_fips=state_fips,
-                county_fips=county_fips,
-            )
+            return Geography(display_name=zip_code, geography_type="zip", zip_code=zip_code)
 
         raise ValueError("Provide either an address or a ZIP code.")
-
-    async def _resolve_county_for_zip(self, zip_code: str, sources: list[str]) -> tuple[str | None, str | None]:
-        try:
-            params = {
-                "address": zip_code,
-                "benchmark": "Public_AR_Current",
-                "vintage": "Current_Current",
-                "format": "json",
-            }
-            payload = await self._get_json(GEOCODER_URL, params=params, sources=sources)
-            matches = payload.get("result", {}).get("addressMatches", [])
-            if not matches:
-                return None, None
-            tracts = matches[0].get("geographies", {}).get("Census Tracts", [])
-            if not tracts:
-                return None, None
-            state = tracts[0].get("STATE")
-            county = tracts[0].get("COUNTY")
-            return state or None, county or None
-        except Exception:
-            return None, None
 
     async def _fetch_census_payload(self, geography: Geography, sources: list[str]) -> dict[str, Any]:
         base_variables = [
