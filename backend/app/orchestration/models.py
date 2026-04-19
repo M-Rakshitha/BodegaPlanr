@@ -37,10 +37,12 @@ class Agent3Output(BaseModel):
 class Agent4Recommendation(BaseModel):
     product: str
     suggested_vendor: str
+    vendor_url: str | None = None
     wholesale_cost_estimate: float
     suggested_retail_price: float
     margin_pct: float
     reorder_trigger_units: int
+    rationale: str
 
 
 class Agent4Output(BaseModel):

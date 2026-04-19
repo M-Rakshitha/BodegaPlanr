@@ -6,7 +6,7 @@ import app.agents.agent4.service as service_module
 
 @pytest.fixture(autouse=True)
 def mock_llm(monkeypatch):
-    def mock_process_items(items, zip_code):
+    async def mock_process_items(items, zip_code, category_context=""):
         results = []
         for item in items:
             results.append({

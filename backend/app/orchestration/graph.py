@@ -9,6 +9,8 @@ from typing import Any, TypedDict, cast
 from app.agents.agent1.models import DemographicProfileRequest, DemographicProfileResponse
 from app.agents.agent1.service import DemographicProfiler
 from app.agents.agent2.service import BuyingBehaviorSuggester
+from app.agents.agent4.models import Agent4Request, Agent4RequestCategory, Agent4RequestHoliday
+from app.agents.agent4.service import VendorInventoryRecommender
 from app.rate_limit import set_gemini_cooldown, set_outbound_cooldown, wait_for_gemini_slot, wait_for_outbound_slot
 from app.orchestration.models import (
     Agent2Output,
@@ -108,25 +110,29 @@ async def _agent3_node(state: GraphState) -> GraphState:
 
 
 async def _agent4_node(state: GraphState) -> GraphState:
-    categories = state["agent2"]["categories"]
-    recommendations = []
-
-    for index, item in enumerate(categories, start=1):
-        wholesale = round(3.25 + index * 0.6, 2)
-        margin = 38.0
-        retail = round(wholesale / (1 - margin / 100), 2)
-        recommendations.append(
-            {
-                "product": item["category"],
-                "suggested_vendor": "Local wholesaler shortlist",
-                "wholesale_cost_estimate": wholesale,
-                "suggested_retail_price": retail,
-                "margin_pct": margin,
-                "reorder_trigger_units": 8,
-            }
+    categories = [
+        Agent4RequestCategory(
+            category=item["category"],
+            score=float(item.get("score", 0.0)),
+            rationale=str(item.get("rationale", "")),
         )
+        for item in state["agent2"]["categories"]
+    ]
+    holidays = [
+        Agent4RequestHoliday(
+            holiday=item["holiday"],
+            demand_multiplier=float(item.get("demand_multiplier", 1.0)),
+        )
+        for item in state["agent3"]["upcoming_signals"]
+    ]
 
-    return {"agent4": {"recommendations": recommendations}}
+    request = Agent4Request(
+        categories=categories,
+        holidays=holidays,
+        location_zip=state["request"].zip_code,
+    )
+    output = await VendorInventoryRecommender().generate_recommendations_async(request)
+    return {"agent4": output.model_dump()}
 
 
 async def _maybe_gemini_refine_categories(

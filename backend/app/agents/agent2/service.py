@@ -69,6 +69,29 @@ class BuyingBehaviorSuggester:
         await set_outbound_cooldown(wait_seconds)
         await set_gemini_cooldown(wait_seconds)
 
+    def _format_gemini_error(self, error: Exception) -> str:
+        code = getattr(error, "code", None)
+        status = getattr(error, "status", None)
+        message = getattr(error, "message", None) or str(error)
+
+        parts: list[str] = []
+        if code is not None:
+            parts.append(str(code))
+        elif isinstance(error, asyncio.TimeoutError):
+            parts.append("504")
+
+        if status:
+            parts.append(str(status))
+        elif isinstance(error, asyncio.TimeoutError):
+            parts.append("Gateway Timeout")
+
+        if message:
+            parts.append(str(message))
+        elif isinstance(error, asyncio.TimeoutError):
+            parts.append("Timed out waiting for Gemini API response.")
+
+        return " ".join(parts).strip()
+
     async def suggest(self, profile: DemographicProfileResponse) -> BuyingBehaviorResponse:
         profile = await self._refresh_profile_from_agent1_if_needed(profile)
 
@@ -628,12 +651,11 @@ class BuyingBehaviorSuggester:
             # Invoke the LLM with a reasonable timeout (90 seconds to account for rate limiting)
             try:
                 response = await asyncio.wait_for(llm.ainvoke(prompt), timeout=GEMINI_TIMEOUT_SECONDS)
-            except asyncio.TimeoutError:
-                return {}, "Gemini API request timed out (may be rate limited or unavailable)", True
+            except asyncio.TimeoutError as timeout_error:
+                return {}, self._format_gemini_error(timeout_error), True
             except Exception as api_error:
                 await self._set_global_cooldown_from_error(api_error)
-                error_msg = str(api_error)[:100]
-                return {}, f"Gemini API error: {error_msg}", True
+                return {}, self._format_gemini_error(api_error), True
             
             content = self._extract_llm_text_content(response)
             if not content:
@@ -693,8 +715,7 @@ class BuyingBehaviorSuggester:
             return grouped_items, None, True
         except Exception as error:
             await self._set_global_cooldown_from_error(error)
-            err = str(error).strip()
-            return {}, f"Gemini request failed: {err or 'unknown error'}", True
+            return {}, self._format_gemini_error(error), True
 
     def _parse_llm_json_object(self, text: str) -> dict[str, Any] | None:
         import json

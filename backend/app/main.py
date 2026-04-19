@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from app.agents.agent1.routes import router as agent1_router
 from app.agents.agent2.routes import router as agent2_router
+from app.agents.agent4.routes import router as agent4_router
 from app.orchestration.routes import router as orchestration_router
 
 
@@ -36,6 +37,7 @@ app.add_middleware(
 
 app.include_router(agent1_router)
 app.include_router(agent2_router)
+app.include_router(agent4_router)
 app.include_router(orchestration_router)
 
 
