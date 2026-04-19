@@ -1,18 +1,20 @@
 'use client';
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { runOrchestration, type OrchestratedReport, runAgent1, runAgent2, type Agent1Output, type Agent2Output } from '@/lib/api';
+import { runAgentViaWS, saveAgentChunks, type Agent1Output, type Agent2Output, type Agent3Output, type Agent4Output } from '@/lib/api';
 
 type StoreInfo = { name: string; zip: string; type: string };
 
 const RACE_COLORS: Record<string, string> = {
+  'White': 'bg-blue-400',
+  'Black or African American': 'bg-violet-500',
   'Hispanic or Latino (any race)': 'bg-brand-500',
-  'Black or African American alone': 'bg-violet-500',
-  'White alone': 'bg-blue-400',
-  'Asian alone': 'bg-amber-400',
+  'Asian': 'bg-amber-400',
   'Two or more races': 'bg-rose-400',
-  'American Indian and Alaska Native alone': 'bg-orange-400',
+  'American Indian or Alaska Native': 'bg-orange-400',
+  'Some other race': 'bg-slate-400',
+  'Native Hawaiian or Other Pacific Islander': 'bg-teal-400',
 };
 
 
@@ -102,7 +104,7 @@ function DemographicsStep({ data }: { data: Agent1Output }) {
   return (
     <div>
       <div className="mb-1">
-        <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Agent 01 — Demographic Profiler</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Demographic Profiler</p>
         <h2 className="mt-1 text-2xl font-bold text-slate-900">Demographics</h2>
         <p className="mt-1 text-sm text-slate-500">
           {data.location} &middot; {coverageLabel}
@@ -212,7 +214,7 @@ function DemographicsStep({ data }: { data: Agent1Output }) {
           </div>
           <div className="mt-4 h-px bg-brand-700" />
           <p className="mt-3 text-xs text-brand-400">
-            Powered by Census ACS 2023 · Agent 01
+            Powered by Census ACS 2023
           </p>
         </div>
       </div>
@@ -257,7 +259,7 @@ function ProductMixStep({ data, profile }: { data: Agent2Output; profile: Agent1
 
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Agent 02 — Buying Behavior Suggester</p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Buying Behavior Suggester</p>
       <h2 className="mt-1 text-2xl font-bold text-slate-900">Product Mix</h2>
       <p className="mt-1 text-sm text-slate-500">
         Categories based on your ZIP's demographic and religious community data.
@@ -341,106 +343,173 @@ function ProductMixStep({ data, profile }: { data: Agent2Output; profile: Agent1
   );
 }
 
+const TRADITION_BADGE: Record<string, string> = {
+  jewish: 'bg-blue-100 text-blue-700',
+  islamic: 'bg-green-100 text-green-700',
+  christian: 'bg-violet-100 text-violet-700',
+  hindu: 'bg-orange-100 text-orange-700',
+  sikh: 'bg-amber-100 text-amber-700',
+  community: 'bg-slate-100 text-slate-600',
+};
+
 // ─── Step 2: Holiday Calendar ─────────────────────────────────────────────────
 
-function HolidayCalendarStep({ data }: { data: OrchestratedReport['agent3'] }) {
+function HolidayCalendarStep({ data }: { data: Agent3Output }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Agent 03 — Holiday Calendar</p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Holiday Demand Calendar</p>
       <h2 className="mt-1 text-2xl font-bold text-slate-900">Demand Signals</h2>
       <p className="mt-1 text-sm text-slate-500">
-        Upcoming events with stocking recommendations. Stock up before each prep window closes.
+        {data.events.length} upcoming events in a {data.horizon_days}-day window · {data.location}
       </p>
 
       <div className="mt-6 space-y-3">
-        {data.upcoming_signals.map((s, i) => (
-          <div key={i} className="flex gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex w-14 shrink-0 flex-col items-center justify-center rounded-lg border border-slate-100 bg-slate-50 py-2">
-              <p className="text-xs font-medium text-slate-400">Prep</p>
-              <p className="text-xl font-bold text-slate-800">{s.start_window_days}d</p>
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold text-slate-800">{s.holiday}</p>
-                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-brand-200">
-                  {s.demand_multiplier.toFixed(2)}× demand
-                </span>
+        {data.events.map((e, i) => (
+          <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-start gap-3">
+              {/* Days-until badge */}
+              <div className="flex w-14 shrink-0 flex-col items-center justify-center rounded-lg border border-slate-100 bg-slate-50 py-2">
+                <p className="text-xs font-medium text-slate-400">In</p>
+                <p className="text-xl font-bold text-slate-800">{e.days_until}d</p>
               </div>
-              <p className="text-xs text-slate-500">{s.rationale}</p>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-bold text-slate-800">{e.holiday}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${TRADITION_BADGE[e.tradition] ?? TRADITION_BADGE.community}`}>
+                    {e.tradition}
+                  </span>
+                  <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-brand-200">
+                    {e.estimated_demand_multiplier.toFixed(2)}× demand
+                  </span>
+                  <span className="text-xs text-slate-400">{Math.round(e.relevant_population_pct)}% of area</span>
+                </div>
+
+                <p className="mt-1 text-xs text-slate-500">{e.demographic_rationale || e.stock_up_window}</p>
+
+                {e.expected_demand_categories.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {e.expected_demand_categories.map((c, j) => (
+                      <span key={j} className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{c}</span>
+                    ))}
+                  </div>
+                )}
+
+                <p className="mt-2 text-xs text-slate-300">
+                  {e.start_date} → {e.end_date} · Stock up: {e.stock_up_window}
+                </p>
+              </div>
             </div>
           </div>
         ))}
       </div>
+
+      {data.data_gaps.length > 0 && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p className="mb-1 text-xs font-semibold text-amber-700">Data gaps</p>
+          <ul className="space-y-0.5">
+            {data.data_gaps.map((g, i) => <li key={i} className="text-xs text-amber-600">{g}</li>)}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Step 3: Vendor Recommendations ──────────────────────────────────────────
 
-function VendorStep({ data }: { data: OrchestratedReport['agent4'] }) {
+function VendorStep({ data }: { data: Agent4Output }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">
-        Agent 04 — Vendor & Inventory Recommender
+        Vendor &amp; Inventory Recommender
       </p>
-      <div className="mt-1 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Vendor Recommendations</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Top picks based on your neighborhood profile and product mix.
-          </p>
-        </div>
+      <h2 className="mt-1 text-2xl font-bold text-slate-900">Vendor Recommendations</h2>
+      <p className="mt-1 text-sm text-slate-500">
+        Top picks based on your neighborhood profile and product mix.
+      </p>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        {data.recommendations.map((v, i) => (
+          <div key={i} className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-bold text-slate-800">{v.product}</p>
+              <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">
+                {v.margin_pct.toFixed(0)}% margin
+              </span>
+            </div>
+
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">{v.rationale}</p>
+
+            <div className="mt-4 space-y-1.5 text-xs text-slate-600">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Vendor</span>
+                {v.vendor_url ? (
+                  <a href={v.vendor_url} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-600 underline underline-offset-2">
+                    {v.suggested_vendor}
+                  </a>
+                ) : (
+                  <span className="font-medium">{v.suggested_vendor}</span>
+                )}
+              </div>
+              {v.vendor_address && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-400 shrink-0">Address</span>
+                  <span className="text-right">{v.vendor_address}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-400">Unit cost</span>
+                <span className="font-medium">${v.wholesale_cost_estimate.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Retail price</span>
+                <span className="font-medium">${v.suggested_retail_price.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Reorder at</span>
+                <span className="font-medium">{v.reorder_trigger_units} units</span>
+              </div>
+              {v.vendor_unit_price && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Vendor unit price</span>
+                  <span className="font-medium">${v.vendor_unit_price.toFixed(2)}{v.vendor_quantity ? ` / ${v.vendor_quantity}` : ''}</span>
+                </div>
+              )}
+            </div>
+
+            <p className="mt-auto pt-3 text-xs text-slate-300">Source: {v.data_source}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50">
-            <tr>
-              {['Product Category', 'Suggested Vendor', 'Unit Cost', 'Retail Price', 'Margin', 'Reorder At'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
-            {data.recommendations.map((v, i) => (
-              <tr key={i} className="transition-colors hover:bg-slate-50">
-                <td className="px-4 py-3 font-medium text-slate-800">{v.product}</td>
-                <td className="px-4 py-3 text-slate-500">{v.suggested_vendor}</td>
-                <td className="px-4 py-3 text-slate-700">${v.wholesale_cost_estimate.toFixed(2)}</td>
-                <td className="px-4 py-3 text-slate-700">${v.suggested_retail_price.toFixed(2)}</td>
-                <td className="px-4 py-3">
-                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">
-                    {v.margin_pct.toFixed(0)}%
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-slate-500">{v.reorder_trigger_units} units</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50 p-4">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-brand-700">Report Complete</p>
-        <p className="text-sm leading-relaxed text-slate-700">
-          Report generated from live Census data and AI-driven demand analysis. Contact your local
-          wholesaler with these recommendations.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-3">
-          <Link
-            href="/vendor/dashboard"
-            className="rounded-full border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100"
-          >
-            &larr; Back to Dashboard
-          </Link>
-          <Link
-            href="/chat"
-            className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:text-slate-900"
-          >
-            Ask Questions in Chat &rarr;
-          </Link>
+      <div className="mt-6 rounded-xl border border-brand-200 bg-brand-50 p-5">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white">
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8l4 4 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-slate-900">Report saved — ready to chat</p>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Your report has been saved. Ask follow-up questions, explore vendor options, or dig into holiday demand.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link
+                href="/chat"
+                className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+              >
+                Chat with your report &rarr;
+              </Link>
+              <Link
+                href="/vendor/dashboard"
+                className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+              >
+                &larr; Back to Dashboard
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -449,87 +518,13 @@ function VendorStep({ data }: { data: OrchestratedReport['agent4'] }) {
 
 // ─── Loading Animation ────────────────────────────────────────────────────────
 
-const autoLoadingSteps = [
-  'Fetching Census demographic data...',
-  'Loading ARDA religious community data...',
-  'Computing CEX buying behavior scores...',
-  'Building demand signals and vendor list...',
-];
-
-function AutoRunLoader({
-  store,
-  onDone,
-  onError,
-}: {
-  store: StoreInfo;
-  onDone: (report: OrchestratedReport) => void;
-  onError: (err: string) => void;
-}) {
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const apiPromise = runOrchestration(store.zip);
-
-    let i = 0;
-    const interval = setInterval(() => {
-      i++;
-      if (i < autoLoadingSteps.length) setProgress(i);
-    }, 900);
-
-    apiPromise
-      .then((report) => {
-        if (!cancelled) {
-          clearInterval(interval);
-          setProgress(autoLoadingSteps.length);
-          setTimeout(() => onDone(report), 400);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          clearInterval(interval);
-          onError(err instanceof Error ? err.message : 'Failed to fetch report');
-        }
-      });
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [store.zip, onDone, onError]);
-
-  return (
-    <div className="mx-auto max-w-md py-16">
-      <p className="text-sm font-semibold text-slate-500">Running analysis for</p>
-      <h2 className="mt-1 text-2xl font-bold text-slate-900">{store.name}</h2>
-      <p className="mt-0.5 text-sm text-slate-400">
-        ZIP {store.zip} &middot; {store.type}
-      </p>
-      <div className="mt-8 space-y-3">
-        {autoLoadingSteps.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex items-center gap-3 text-sm transition-all duration-300 ${
-              i < progress ? 'text-brand-600' : 'text-slate-300'
-            }`}
-          >
-            <span
-              className={`h-1.5 w-1.5 shrink-0 rounded-full ${i < progress ? 'bg-brand-500' : 'bg-slate-200'}`}
-            />
-            {msg}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Wizard ──────────────────────────────────────────────────────────────
 
 const steps = [
   { id: 0, label: 'Demographics' },
   { id: 1, label: 'Product Mix' },
+  { id: 2, label: 'Holiday Calendar' },
+  { id: 3, label: 'Vendor Picks' },
 ];
 
 function WizardInner() {
@@ -538,9 +533,20 @@ function WizardInner() {
   const [store, setStore] = useState<StoreInfo>({ name: '', zip: '', type: '' });
   const [agent1Data, setAgent1Data] = useState<Agent1Output | null>(null);
   const [agent2Data, setAgent2Data] = useState<Agent2Output | null>(null);
+  const [agent3Data, setAgent3Data] = useState<Agent3Output | null>(null);
+  const [agent4Data, setAgent4Data] = useState<Agent4Output | null>(null);
   const [runningAgent1, setRunningAgent1] = useState(false);
   const [runningAgent2, setRunningAgent2] = useState(false);
+  const [runningAgent3, setRunningAgent3] = useState(false);
+  const [runningAgent4, setRunningAgent4] = useState(false);
+  const [progressHistory, setProgressHistory] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const maxUnlocked = agent4Data ? 3 : agent3Data ? 2 : agent2Data ? 1 : agent1Data ? 0 : -1;
+  const agent1Triggered = useRef(false);
+  const sessionId = useRef<string>(
+    typeof crypto !== 'undefined' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
+  );
 
   useEffect(() => {
     const name = params.get('store');
@@ -551,27 +557,158 @@ function WizardInner() {
     }
   }, [params]);
 
+  const startProgress = () => { setProgressHistory([]); };
+  const updateProgress = (msg: string) => { setProgressHistory((prev) => [...prev, msg]); };
+  const clearProgress = () => { setProgressHistory([]); };
+
+  const saveChunks = (agent: 'agent1' | 'agent2' | 'agent3' | 'agent4', data: Agent1Output | Agent2Output | Agent3Output | Agent4Output) => {
+    saveAgentChunks({ session_id: sessionId.current, zip: store.zip, store_name: store.name, agent, data }).catch(console.error);
+  };
+
   useEffect(() => {
-    if (store.zip && !agent1Data && !runningAgent1 && !error) {
-      setRunningAgent1(true);
-      runAgent1(store.zip)
-        .then(setAgent1Data)
-        .catch(err => setError(err.message))
-        .finally(() => setRunningAgent1(false));
-    }
-  }, [store.zip, agent1Data, runningAgent1, error]);
+    if (!store.zip || agent1Data || error || agent1Triggered.current) return;
+    agent1Triggered.current = true;
+    setRunningAgent1(true);
+    startProgress();
+    runAgentViaWS<Agent1Output>('/ws/agents/1', { zip_code: store.zip }, updateProgress)
+      .then((data) => {
+        setAgent1Data(data);
+        saveChunks('agent1', data);
+        localStorage.setItem('bodega_last_session', sessionId.current);
+        localStorage.setItem('bodega_last_store', JSON.stringify({ name: store.name, zip: store.zip }));
+      })
+      .catch((err: Error) => {
+        setError(err.message);
+        agent1Triggered.current = false;
+      })
+      .finally(() => { setRunningAgent1(false); clearProgress(); });
+  }, [store.zip, agent1Data, error]);
 
   const runAgent2Handler = () => {
     if (agent1Data && !runningAgent2) {
       setRunningAgent2(true);
-      runAgent2(agent1Data)
-        .then((data) => { setAgent2Data(data); setStep(1); })
-        .catch(err => setError(err.message))
-        .finally(() => setRunningAgent2(false));
+      startProgress();
+      runAgentViaWS<Agent2Output>('/ws/agents/2', { profile: agent1Data }, updateProgress)
+        .then((data) => { setAgent2Data(data); setStep(1); saveChunks('agent2', data); })
+        .catch((err: Error) => setError(err.message))
+        .finally(() => { setRunningAgent2(false); clearProgress(); });
+    }
+  };
+
+  const runAgent3Handler = () => {
+    if (agent1Data && !runningAgent3) {
+      setRunningAgent3(true);
+      startProgress();
+      runAgentViaWS<Agent3Output>('/ws/agents/3', { profile: agent1Data }, updateProgress)
+        .then((data) => { setAgent3Data(data); setStep(2); saveChunks('agent3', data); })
+        .catch((err: Error) => setError(err.message))
+        .finally(() => { setRunningAgent3(false); clearProgress(); });
+    }
+  };
+
+  const runAgent4Handler = () => {
+    if (agent2Data && agent3Data && !runningAgent4) {
+      setRunningAgent4(true);
+      startProgress();
+      runAgentViaWS<Agent4Output>(
+        '/ws/agents/4',
+        {
+          categories: agent2Data.categories.map((c) => ({ ...c, score: 1.0 })),
+          holidays: agent3Data.events.map((e) => ({ holiday: e.holiday, demand_multiplier: e.estimated_demand_multiplier })),
+          location_zip: store.zip,
+        },
+        updateProgress,
+      )
+        .then((data) => { setAgent4Data(data); setStep(3); saveChunks('agent4', data); })
+        .catch((err: Error) => setError(err.message))
+        .finally(() => { setRunningAgent4(false); clearProgress(); });
     }
   };
 
   const hasStore = store.name && store.zip;
+
+  const anyRunning = runningAgent1 || runningAgent2 || runningAgent3 || runningAgent4;
+
+  function AgentLoader({ label, agentNum, totalSteps }: { label: string; agentNum: number; totalSteps: number }) {
+    const completedSteps = progressHistory.slice(0, -1);
+    const currentStep = progressHistory[progressHistory.length - 1] ?? null;
+    const pct = progressHistory.length === 0
+      ? 4
+      : Math.min(94, Math.round((progressHistory.length / totalSteps) * 100));
+
+    return (
+      <div className="mx-auto max-w-lg py-14">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
+            {String(agentNum).padStart(2, '0')}
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">{label}</p>
+            <p className="text-base font-bold text-slate-900 leading-tight">{store.name}</p>
+            <p className="text-xs text-slate-400">ZIP {store.zip} &middot; {store.type}</p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mb-6">
+          <div className="mb-1.5 flex items-center justify-between text-xs text-slate-400">
+            <span>{pct}% complete</span>
+            <span>{progressHistory.length} / {totalSteps} steps</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-brand-500 transition-all duration-700 ease-out"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Step list */}
+        <div className="space-y-2.5">
+          {completedSteps.map((msg, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600">
+                <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </span>
+              <span className="text-sm text-slate-400">{msg}</span>
+            </div>
+          ))}
+          {currentStep ? (
+            <div className="flex items-center gap-3">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-brand-500" />
+              </span>
+              <span className="text-sm font-semibold text-brand-700">{currentStep}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-brand-400" />
+              </span>
+              <span className="text-sm text-slate-400">Connecting…</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function NextButton({ label, onClick, running, disabled }: { label: string; onClick: () => void; running: boolean; disabled?: boolean }) {
+    return (
+      <div className="mt-6 flex justify-center">
+        <button
+          onClick={onClick}
+          disabled={running || disabled}
+          className="rounded-full bg-brand-600 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+        >
+          {running ? `Running ${label}…` : `Run ${label}`}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-10">
@@ -581,26 +718,20 @@ function WizardInner() {
           {steps.map((s, i) => (
             <div key={s.id} className="flex flex-1 items-center">
               <button
-                onClick={() => (agent1Data && s.id <= (agent2Data ? 1 : 0)) && setStep(s.id)}
-                disabled={!(agent1Data && s.id <= (agent2Data ? 1 : 0)) || s.id === step}
+                onClick={() => s.id <= maxUnlocked && setStep(s.id)}
+                disabled={s.id > maxUnlocked || s.id === step}
                 className="flex flex-col items-center gap-1.5 disabled:cursor-default"
               >
                 <span
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
-                    s.id < step
-                      ? 'bg-brand-600 text-white'
-                      : s.id === step
-                      ? 'bg-brand-50 text-brand-600 ring-2 ring-brand-500'
-                      : 'bg-white text-slate-300 ring-1 ring-slate-200'
+                    s.id < step ? 'bg-brand-600 text-white'
+                    : s.id === step ? 'bg-brand-50 text-brand-600 ring-2 ring-brand-500'
+                    : 'bg-white text-slate-300 ring-1 ring-slate-200'
                   }`}
                 >
                   {s.id < step ? '✓' : s.id + 1}
                 </span>
-                <span
-                  className={`hidden text-xs font-medium sm:block ${
-                    s.id === step ? 'text-brand-600' : s.id < step ? 'text-slate-500' : 'text-slate-300'
-                  }`}
-                >
+                <span className={`hidden text-xs font-medium sm:block ${s.id === step ? 'text-brand-600' : s.id < step ? 'text-slate-500' : 'text-slate-300'}`}>
                   {s.label}
                 </span>
               </button>
@@ -615,10 +746,7 @@ function WizardInner() {
         {!hasStore && (
           <div className="flex flex-col items-center py-16 text-center">
             <p className="text-slate-500">No store selected.</p>
-            <Link
-              href="/vendor/dashboard"
-              className="mt-4 rounded-full bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-            >
+            <Link href="/vendor/dashboard" className="mt-4 rounded-full bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700">
               Go to Dashboard
             </Link>
           </div>
@@ -631,19 +759,12 @@ function WizardInner() {
             <p className="mt-1 text-sm text-slate-500">{error}</p>
             <div className="mt-4 flex justify-center gap-3">
               <button
-                onClick={() => {
-                  setError(null);
-                  setAgent1Data(null);
-                  setAgent2Data(null);
-                }}
+                onClick={() => { setError(null); setAgent1Data(null); setAgent2Data(null); setAgent3Data(null); setAgent4Data(null); }}
                 className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
               >
                 Retry
               </button>
-              <Link
-                href="/vendor/dashboard"
-                className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
-              >
+              <Link href="/vendor/dashboard" className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">
                 Back to Dashboard
               </Link>
             </div>
@@ -652,51 +773,38 @@ function WizardInner() {
 
         {/* Step content */}
         <div className="min-h-96">
-          {runningAgent1 && (
-            <div className="mx-auto max-w-md py-16">
-              <p className="text-sm font-semibold text-slate-500">Running Agent 1 for</p>
-              <h2 className="mt-1 text-2xl font-bold text-slate-900">{store.name}</h2>
-              <p className="mt-0.5 text-sm text-slate-400">
-                ZIP {store.zip} &middot; {store.type}
-              </p>
-              <div className="mt-8 space-y-3">
-                <div className="flex items-center gap-3 text-sm text-brand-600">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
-                  Fetching Census demographic data...
-                </div>
-              </div>
-            </div>
-          )}
-          {!runningAgent1 && !error && agent1Data && step === 0 && (
+          {runningAgent1 && <AgentLoader label="Profiling demographics" agentNum={1} totalSteps={4} />}
+
+          {!anyRunning && !error && agent1Data && step === 0 && (
             <div>
               <DemographicsStep data={agent1Data} />
-              <div className="mt-6 flex justify-center">
-                <button
-                  onClick={runAgent2Handler}
-                  disabled={runningAgent2}
-                  className="rounded-full bg-brand-600 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
-                >
-                  {runningAgent2 ? 'Running Agent 2...' : 'Run Agent 2'}
-                </button>
-              </div>
+              <NextButton label="Buying Behavior Suggester" onClick={runAgent2Handler} running={runningAgent2} />
             </div>
           )}
-          {runningAgent2 && (
-            <div className="mx-auto max-w-md py-16">
-              <p className="text-sm font-semibold text-slate-500">Running Agent 2 for</p>
-              <h2 className="mt-1 text-2xl font-bold text-slate-900">{store.name}</h2>
-              <p className="mt-0.5 text-sm text-slate-400">
-                ZIP {store.zip} &middot; {store.type}
-              </p>
-              <div className="mt-8 space-y-3">
-                <div className="flex items-center gap-3 text-sm text-brand-600">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
-                  Loading CEX buying behavior scores...
-                </div>
-              </div>
+
+          {runningAgent2 && <AgentLoader label="Analyzing product mix" agentNum={2} totalSteps={4} />}
+
+          {!anyRunning && !error && agent2Data && agent1Data && step === 1 && (
+            <div>
+              <ProductMixStep data={agent2Data} profile={agent1Data} />
+              <NextButton label="Holiday Demand Calendar" onClick={runAgent3Handler} running={runningAgent3} />
             </div>
           )}
-          {!runningAgent2 && !error && agent2Data && agent1Data && step === 1 && <ProductMixStep data={agent2Data} profile={agent1Data} />}
+
+          {runningAgent3 && <AgentLoader label="Building holiday calendar" agentNum={3} totalSteps={5} />}
+
+          {!anyRunning && !error && agent3Data && step === 2 && (
+            <div>
+              <HolidayCalendarStep data={agent3Data} />
+              <NextButton label="Vendor & Inventory Recommender" onClick={runAgent4Handler} running={runningAgent4} />
+            </div>
+          )}
+
+          {runningAgent4 && <AgentLoader label="Sourcing vendor picks" agentNum={4} totalSteps={3} />}
+
+          {!anyRunning && !error && agent4Data && step === 3 && (
+            <VendorStep data={agent4Data} />
+          )}
         </div>
       </div>
     </div>

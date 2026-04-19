@@ -10,7 +10,10 @@ from app.agents.agent1.routes import router as agent1_router
 from app.agents.agent2.routes import router as agent2_router
 from app.agents.agent4.routes import router as agent4_router
 from app.agents.agent3.routes import router as agent3_router
+from app.agents.ws_routes import router as ws_router
 from app.orchestration.routes import router as orchestration_router
+from app.reports.routes import router as reports_router
+from app.chat.routes import router as chat_router
 
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -40,7 +43,10 @@ app.include_router(agent1_router)
 app.include_router(agent2_router)
 app.include_router(agent4_router)
 app.include_router(agent3_router)
+app.include_router(ws_router)
 app.include_router(orchestration_router)
+app.include_router(reports_router)
+app.include_router(chat_router)
 
 
 @app.get("/health", response_model=HealthResponse)

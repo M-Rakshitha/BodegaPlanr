@@ -52,9 +52,19 @@ class DemographicProfiler:
         self.arda_mapping_path = Path(os.getenv("ARDA_DENOMINATION_MAPPING_PATH", str(mapping_default)))
         self._arda_rows_by_fips: dict[str, dict[str, str]] | None = None
 
-    async def build_profile(self, request: DemographicProfileRequest) -> DemographicProfileResponse:
+    async def build_profile(
+        self,
+        request: DemographicProfileRequest,
+        progress: Any | None = None,
+    ) -> DemographicProfileResponse:
+        async def emit(msg: str) -> None:
+            if progress:
+                await progress(msg)
+
         sources: list[str] = []
+        await emit("Resolving geography...")
         geography = await self._resolve_geography(request, sources)
+        await emit("Fetching Census demographics...")
         census_payload = await self._fetch_census_payload(geography, sources)
 
         total_pop = self._to_int(census_payload.get("B01003_001E"))
@@ -63,6 +73,7 @@ class DemographicProfiler:
         age_groups = self._calculate_age_groups(census_payload)
         top_age_groups = self._top_groups(age_groups, limit=10)
         race_demographics = self._calculate_race_demographics(census_payload, total_pop)
+        await emit("Loading religion data...")
         religion_demographics = self._calculate_religion_demographics(total_pop, geography)
         if religion_demographics is None and geography.geography_type == "zip" and geography.zip_code:
             county_geography = await self._zip_to_county_geography(geography.zip_code, sources)
@@ -77,6 +88,7 @@ class DemographicProfiler:
                 sources.append(f"arda_group_detail:{self.arda_group_detail_path}")
         income_tier = self._income_tier(median_income)
         primary_language = self._primary_language_proxy(census_payload)
+        await emit("Building profile...")
 
         return DemographicProfileResponse(
             location=geography.display_name,

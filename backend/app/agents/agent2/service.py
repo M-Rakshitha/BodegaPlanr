@@ -92,7 +92,12 @@ class BuyingBehaviorSuggester:
 
         return " ".join(parts).strip()
 
-    async def suggest(self, profile: DemographicProfileResponse) -> BuyingBehaviorResponse:
+    async def suggest(self, profile: DemographicProfileResponse, progress: Any | None = None) -> BuyingBehaviorResponse:
+        async def emit(msg: str) -> None:
+            if progress:
+                await progress(msg)
+
+        await emit("Analyzing demographic profile...")
         profile = await self._refresh_profile_from_agent1_if_needed(profile)
 
         religion_data = profile.religion_demographics
@@ -104,12 +109,16 @@ class BuyingBehaviorSuggester:
         high_races = [row for row in top_races if row.share_pct >= PRIMARY_THRESHOLD]
         high_religions = [row for row in top_religions if row.share_pct >= SECONDARY_THRESHOLD]
 
+        await emit("Generating search intents...")
         generated_queries = await self._generate_search_intents(high_races, high_religions)
+        await emit("Fetching product data...")
         group_item_suggestions, source_links, data_gaps = await self._run_api_loop(
             high_races,
             high_religions,
             generated_queries,
+            emit=emit,
         )
+        await emit("Synthesizing categories...")
         categories = self._synthesize_categories(group_item_suggestions)
         top_signals = self._build_top_signals(top_races, top_religions)
 
@@ -175,6 +184,7 @@ class BuyingBehaviorSuggester:
         top_races: list[TopGroupShare],
         top_religions: list[TopGroupShare],
         generated_queries: dict[str, list[str]],
+        emit: Any | None = None,
     ) -> tuple[list[GroupItemSuggestion], list[str], list[str]]:
         suggestions: list[GroupItemSuggestion] = []
         source_links: list[str] = []
@@ -219,6 +229,8 @@ class BuyingBehaviorSuggester:
         batch_error: str | None = None
         batch_attempted = False
         if missing_groups:
+            if emit:
+                await emit(f"Generating AI product suggestions for {len(missing_groups)} group(s)...")
             batch_results, batch_error, batch_attempted = await self._gemini_generate_fallback_items_batch(missing_groups)
 
         finalized_suggestions: list[GroupItemSuggestion] = []
