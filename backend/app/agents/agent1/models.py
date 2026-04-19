@@ -35,6 +35,11 @@ class DemographicProfileResponse(BaseModel):
         estimated_radius_miles: float | None = None
         explanation: str
 
+    class TopGroup(BaseModel):
+        group: str
+        count: int
+        share_pct: float
+
     location: str
     geography_type: Literal["address", "zip"]
     total_pop: int
@@ -42,8 +47,11 @@ class DemographicProfileResponse(BaseModel):
     population_density_per_sq_mile: float | None = None
     geography_coverage: GeographyCoverage
     age_groups: dict[str, CountShare]
+    top_age_groups: list[TopGroup] = Field(default_factory=list)
     race_demographics: dict[str, CategoryDemographic]
     religion_demographics: dict[str, CategoryDemographic] | None = None
+    top_races: list[TopGroup] = Field(default_factory=list)
+    top_religions: list[TopGroup] = Field(default_factory=list)
     median_income: int | None = None
     income_tier: str
     primary_language: str

@@ -125,3 +125,23 @@ def test_religion_demographics_uses_readable_names_and_returns_all_nonzero_group
     assert religion["African Methodist Episcopal Church"]["count"] == 12
     assert religion["Agape Christian Fellowship"]["count"] == 5
     assert all(entry["subcategories"] == {} for entry in religion.values())
+
+
+def test_top_groups_returns_max_10_sorted() -> None:
+    profiler = DemographicProfiler()
+    demographics = {
+        f"group-{i}": {
+            "count": 100 - i,
+            "share_pct": 20 - i * 0.5,
+            "subcategories": {},
+        }
+        for i in range(15)
+    }
+
+    top = profiler._top_groups(demographics, limit=10)
+
+    assert len(top) == 10
+    assert top[0]["group"] == "group-0"
+    assert top[0]["count"] == 100
+    assert top[0]["share_pct"] == 20.0
+    assert top[-1]["group"] == "group-9"

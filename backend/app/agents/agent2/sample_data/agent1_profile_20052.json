@@ -1,0 +1,297 @@
+{
+  "age_groups": {
+    "0-9": {
+      "count": 0,
+      "share_pct": 0
+    },
+    "10-19": {
+      "count": 1501,
+      "share_pct": 65.55
+    },
+    "20-29": {
+      "count": 769,
+      "share_pct": 33.58
+    },
+    "30-39": {
+      "count": 5,
+      "share_pct": 0.22
+    },
+    "40-49": {
+      "count": 5,
+      "share_pct": 0.22
+    },
+    "50-59": {
+      "count": 0,
+      "share_pct": 0
+    },
+    "60-69": {
+      "count": 10,
+      "share_pct": 0.44
+    },
+    "70-79": {
+      "count": 0,
+      "share_pct": 0
+    },
+    "80+": {
+      "count": 0,
+      "share_pct": 0
+    }
+  },
+  "geography_coverage": {
+    "coverage_id": "20052",
+    "estimated_radius_miles": null,
+    "explanation": "Data is aggregated for the full ZIP Code Tabulation Area (ZCTA). This is a boundary polygon, so there is no fixed radius.",
+    "geography_unit": "zcta"
+  },
+  "geography_type": "zip",
+  "household_count": 7,
+  "income_tier": "low",
+  "location": "20052",
+  "median_income": -666666666,
+  "population_density_per_sq_mile": null,
+  "primary_language": "English",
+  "race_demographics": {
+    "American Indian or Alaska Native": {
+      "count": 10,
+      "share_pct": 0.44,
+      "subcategories": {
+        "AIAN alone or in combination": {
+          "count": 25,
+          "share_pct": 1.09
+        },
+        "Hispanic AIAN alone": {
+          "count": 128,
+          "share_pct": 5.59
+        }
+      }
+    },
+    "Asian": {
+      "count": 268,
+      "share_pct": 11.7,
+      "subcategories": {
+        "Asian alone or in combination": {
+          "count": 309,
+          "share_pct": 13.49
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied": {
+          "count": 327,
+          "share_pct": 14.28
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied - Central Asian - Uzbek": {
+          "count": 6,
+          "share_pct": 0.26
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied - East Asian - Chinese, except Taiwanese": {
+          "count": 97,
+          "share_pct": 4.24
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied - East Asian - Japanese": {
+          "count": 9,
+          "share_pct": 0.39
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied - East Asian - Korean": {
+          "count": 48,
+          "share_pct": 2.1
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied - East Asian - Taiwanese": {
+          "count": 4,
+          "share_pct": 0.17
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied - Other Asian, not specified": {
+          "count": 47,
+          "share_pct": 2.05
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied - South Asian - Asian Indian": {
+          "count": 84,
+          "share_pct": 3.67
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied - South Asian - Sri Lankan": {
+          "count": 4,
+          "share_pct": 0.17
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied - Southeast Asian - Filipino": {
+          "count": 12,
+          "share_pct": 0.52
+        },
+        "Asian subgroup (alone or in any combination): Total Groups Tallied - Southeast Asian - Vietnamese": {
+          "count": 16,
+          "share_pct": 0.7
+        },
+        "Asian subgroup: East Asian - Chinese, except Taiwanese": {
+          "count": 72,
+          "share_pct": 3.14
+        },
+        "Asian subgroup: East Asian - Japanese": {
+          "count": 9,
+          "share_pct": 0.39
+        },
+        "Asian subgroup: East Asian - Korean": {
+          "count": 33,
+          "share_pct": 1.44
+        },
+        "Asian subgroup: East Asian - Taiwanese": {
+          "count": 4,
+          "share_pct": 0.17
+        },
+        "Asian subgroup: Other Asian, not specified": {
+          "count": 44,
+          "share_pct": 1.92
+        },
+        "Asian subgroup: South Asian - Asian Indian": {
+          "count": 78,
+          "share_pct": 3.41
+        },
+        "Asian subgroup: South Asian - Sri Lankan": {
+          "count": 4,
+          "share_pct": 0.17
+        },
+        "Asian subgroup: Southeast Asian - Vietnamese": {
+          "count": 11,
+          "share_pct": 0.48
+        },
+        "Asian subgroup: Two or more Asian": {
+          "count": 13,
+          "share_pct": 0.57
+        },
+        "Hispanic Asian alone": {
+          "count": 13,
+          "share_pct": 0.57
+        },
+        "Non-Hispanic Asian alone": {
+          "count": 268,
+          "share_pct": 11.7
+        }
+      }
+    },
+    "Black or African American": {
+      "count": 220,
+      "share_pct": 9.61,
+      "subcategories": {
+        "Black alone or in combination": {
+          "count": 259,
+          "share_pct": 11.31
+        },
+        "Hispanic Black alone": {
+          "count": 326,
+          "share_pct": 14.24
+        },
+        "Non-Hispanic Black alone": {
+          "count": 207,
+          "share_pct": 9.04
+        }
+      }
+    },
+    "Hispanic or Latino (any race)": {
+      "count": 8,
+      "share_pct": 0.35,
+      "subcategories": {
+        "Hispanic AIAN": {
+          "count": 128,
+          "share_pct": 5.59
+        },
+        "Hispanic Asian": {
+          "count": 13,
+          "share_pct": 0.57
+        },
+        "Hispanic Black": {
+          "count": 326,
+          "share_pct": 14.24
+        },
+        "Hispanic NHPI": {
+          "count": 10,
+          "share_pct": 0.44
+        },
+        "Hispanic White": {
+          "count": 60,
+          "share_pct": 2.62
+        }
+      }
+    },
+    "Native Hawaiian or Other Pacific Islander": {
+      "count": 8,
+      "share_pct": 0.35,
+      "subcategories": {
+        "Hispanic NHPI alone": {
+          "count": 10,
+          "share_pct": 0.44
+        },
+        "NHPI alone or in combination": {
+          "count": 8,
+          "share_pct": 0.35
+        },
+        "NHPI subgroup (alone or in any combination): Total Groups Tallied": {
+          "count": 8,
+          "share_pct": 0.35
+        },
+        "NHPI subgroup (alone or in any combination): Total Groups Tallied - Polynesian - Native Hawaiian": {
+          "count": 8,
+          "share_pct": 0.35
+        },
+        "NHPI subgroup: Polynesian - Native Hawaiian": {
+          "count": 8,
+          "share_pct": 0.35
+        },
+        "Non-Hispanic NHPI alone": {
+          "count": 8,
+          "share_pct": 0.35
+        }
+      }
+    },
+    "Some other race": {
+      "count": 115,
+      "share_pct": 5.02,
+      "subcategories": {
+        "Non-Hispanic Some other race alone": {
+          "count": 27,
+          "share_pct": 1.18
+        },
+        "Some other race alone or in combination": {
+          "count": 215,
+          "share_pct": 9.39
+        }
+      }
+    },
+    "Two or more races": {
+      "count": 155,
+      "share_pct": 6.77,
+      "subcategories": {
+        "Non-Hispanic Two or more races": {
+          "count": 68,
+          "share_pct": 2.97
+        }
+      }
+    },
+    "White": {
+      "count": 1514,
+      "share_pct": 66.11,
+      "subcategories": {
+        "Hispanic White alone": {
+          "count": 60,
+          "share_pct": 2.62
+        },
+        "Non-Hispanic White alone": {
+          "count": 1386,
+          "share_pct": 60.52
+        },
+        "White alone or in combination": {
+          "count": 1659,
+          "share_pct": 72.45
+        }
+      }
+    }
+  },
+  "religion_demographics": null,
+  "sources": [
+    "https://api.census.gov/data/2023/acs/acs5?get=B01003_001E%2CB11001_001E%2CB19013_001E%2CB02008_001E%2CB02009_001E%2CB02010_001E%2CB02011_001E%2CB02012_001E%2CB02013_001E%2CB03002_010E%2CB03002_003E%2CB03002_004E%2CB03002_005E%2CB03002_006E%2CB03002_007E%2CB03002_008E%2CB03002_009E%2CB03002_011E%2CB03002_012E%2CB03002_013E%2CB03002_014E%2CB03002_015E%2CB03002_016E%2CB03002_017E%2CB02001_002E%2CB02001_003E%2CB02001_004E%2CB02001_005E%2CB02001_006E%2CB02001_007E%2CB02001_008E&for=zip+code+tabulation+area%3A20052",
+    "https://api.census.gov/data/2023/acs/acs5?get=B01001_003E%2CB01001_004E%2CB01001_005E%2CB01001_006E%2CB01001_007E%2CB01001_008E%2CB01001_009E%2CB01001_010E%2CB01001_011E%2CB01001_012E%2CB01001_013E%2CB01001_014E%2CB01001_015E%2CB01001_016E%2CB01001_017E%2CB01001_018E%2CB01001_019E%2CB01001_020E%2CB01001_021E%2CB01001_022E%2CB01001_023E%2CB01001_024E%2CB01001_025E%2CB01001_027E%2CB01001_028E%2CB01001_029E%2CB01001_030E%2CB01001_031E%2CB01001_032E%2CB01001_033E%2CB01001_034E%2CB01001_035E%2CB01001_036E%2CB01001_037E%2CB01001_038E%2CB01001_039E%2CB01001_040E%2CB01001_041E%2CB01001_042E%2CB01001_043E%2CB01001_044E%2CB01001_045E%2CB01001_046E%2CB01001_047E%2CB01001_048E%2CB01001_049E&for=zip+code+tabulation+area%3A20052",
+    "https://api.census.gov/data/2023/acs/acs5/groups/B02015.json",
+    "https://api.census.gov/data/2023/acs/acs5?get=B02015_002E%2CB02015_003E%2CB02015_004E%2CB02015_005E%2CB02015_006E%2CB02015_007E%2CB02015_008E%2CB02015_009E%2CB02015_010E%2CB02015_011E%2CB02015_012E%2CB02015_013E%2CB02015_014E%2CB02015_015E%2CB02015_016E%2CB02015_017E%2CB02015_018E%2CB02015_019E%2CB02015_020E%2CB02015_021E%2CB02015_022E%2CB02015_023E%2CB02015_024E%2CB02015_025E%2CB02015_026E%2CB02015_027E%2CB02015_028E%2CB02015_029E%2CB02015_030E%2CB02015_031E%2CB02015_032E%2CB02015_033E%2CB02015_034E&for=zip+code+tabulation+area%3A20052",
+    "https://api.census.gov/data/2023/acs/acs5/groups/B02016.json",
+    "https://api.census.gov/data/2023/acs/acs5?get=B02016_002E%2CB02016_003E%2CB02016_004E%2CB02016_005E%2CB02016_006E%2CB02016_007E%2CB02016_008E%2CB02016_009E%2CB02016_010E%2CB02016_011E%2CB02016_012E%2CB02016_013E%2CB02016_014E&for=zip+code+tabulation+area%3A20052",
+    "https://api.census.gov/data/2023/acs/acs5/groups/B02018.json",
+    "https://api.census.gov/data/2023/acs/acs5?get=B02018_001E%2CB02018_002E%2CB02018_003E%2CB02018_004E%2CB02018_005E%2CB02018_006E%2CB02018_007E%2CB02018_008E%2CB02018_009E%2CB02018_010E%2CB02018_011E%2CB02018_012E%2CB02018_013E%2CB02018_014E%2CB02018_015E%2CB02018_016E%2CB02018_017E%2CB02018_018E%2CB02018_019E%2CB02018_020E%2CB02018_021E%2CB02018_022E%2CB02018_023E%2CB02018_024E%2CB02018_025E%2CB02018_026E%2CB02018_027E%2CB02018_028E%2CB02018_029E%2CB02018_030E%2CB02018_031E%2CB02018_032E%2CB02018_033E&for=zip+code+tabulation+area%3A20052",
+    "https://api.census.gov/data/2023/acs/acs5/groups/B02019.json",
+    "https://api.census.gov/data/2023/acs/acs5?get=B02019_001E%2CB02019_002E%2CB02019_003E%2CB02019_004E%2CB02019_005E%2CB02019_006E%2CB02019_007E%2CB02019_008E%2CB02019_009E%2CB02019_010E%2CB02019_011E%2CB02019_012E%2CB02019_013E&for=zip+code+tabulation+area%3A20052"
+  ],
+  "total_pop": 2290
+}

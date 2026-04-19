@@ -5,7 +5,7 @@ FastAPI service for BodegaPlanr.
 ## Agent layout
 
 - `app/agents/agent1` — demographic profiling with free Census APIs and an optional ARDA CSV hook.
-- `app/agents/agent2` — buying behavior rules placeholder.
+- `app/agents/agent2` — buying behavior suggester driven by Agent 1 demographics.
 - `app/agents/agent3` — holiday calendar placeholder.
 - `app/agents/agent4` — vendor and inventory placeholder.
 

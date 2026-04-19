@@ -11,11 +11,14 @@ from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
 import httpx
+from app.rate_limit import wait_for_outbound_slot
 
 from .models import DemographicProfileRequest, DemographicProfileResponse
 
 ACS_URL = "https://api.census.gov/data/2023/acs/acs5"
 GEOCODER_URL = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress"
+ZIP_LOOKUP_URL = "https://api.zippopotam.us/us/{zip_code}"
+FCC_COUNTY_LOOKUP_URL = "https://geo.fcc.gov/api/census/block/find"
 
 
 @dataclass(frozen=True)
@@ -58,8 +61,16 @@ class DemographicProfiler:
         household_count = self._to_int(census_payload.get("B11001_001E"))
         median_income = self._to_int(census_payload.get("B19013_001E"))
         age_groups = self._calculate_age_groups(census_payload)
+        top_age_groups = self._top_groups(age_groups, limit=10)
         race_demographics = self._calculate_race_demographics(census_payload, total_pop)
         religion_demographics = self._calculate_religion_demographics(total_pop, geography)
+        if religion_demographics is None and geography.geography_type == "zip" and geography.zip_code:
+            county_geography = await self._zip_to_county_geography(geography.zip_code, sources)
+            if county_geography is not None:
+                religion_demographics = self._calculate_religion_demographics(total_pop, county_geography)
+
+        top_races = self._top_groups(race_demographics, limit=10)
+        top_religions = self._top_groups(religion_demographics, limit=10) if religion_demographics else []
         if religion_demographics is not None:
             sources.append(f"arda_file:{self.arda_data_path}")
             if self.arda_group_detail_path.exists():
@@ -75,13 +86,68 @@ class DemographicProfiler:
             population_density_per_sq_mile=None,
             geography_coverage=self._build_geography_coverage(geography),
             age_groups=cast(dict[str, DemographicProfileResponse.CountShare], age_groups),
+            top_age_groups=cast(list[DemographicProfileResponse.TopGroup], top_age_groups),
             race_demographics=cast(dict[str, DemographicProfileResponse.CategoryDemographic], race_demographics),
             religion_demographics=cast(dict[str, DemographicProfileResponse.CategoryDemographic] | None, religion_demographics),
+            top_races=cast(list[DemographicProfileResponse.TopGroup], top_races),
+            top_religions=cast(list[DemographicProfileResponse.TopGroup], top_religions),
             median_income=median_income,
             income_tier=income_tier,
             primary_language=primary_language,
             sources=sources,
         )
+
+    async def _zip_to_county_geography(self, zip_code: str, sources: list[str]) -> Geography | None:
+        payload = await self._get_json(ZIP_LOOKUP_URL.format(zip_code=zip_code), params={}, sources=sources)
+        places = payload.get("places") or []
+        if not places:
+            return None
+
+        lat = places[0].get("latitude")
+        lon = places[0].get("longitude")
+        if lat is None or lon is None:
+            return None
+
+        params = {
+            "latitude": str(lat),
+            "longitude": str(lon),
+            "showall": "true",
+            "format": "json",
+        }
+        county_payload = await self._get_json(FCC_COUNTY_LOOKUP_URL, params=params, sources=sources)
+        county_fips = str(county_payload.get("County", {}).get("FIPS", ""))
+        if len(county_fips) != 5 or not county_fips.isdigit():
+            return None
+
+        county_name = str(county_payload.get("County", {}).get("name", "")).strip()
+        return Geography(
+            display_name=county_name or zip_code,
+            geography_type="address",
+            state_fips=county_fips[:2],
+            county_fips=county_fips[2:],
+            zip_code=zip_code,
+        )
+
+    def _top_groups(self, demographics: dict[str, Any] | None, limit: int) -> list[dict[str, int | float | str]]:
+        if not demographics:
+            return []
+
+        rows: list[dict[str, int | float | str]] = []
+        for name, entry in demographics.items():
+            count = self._to_int(entry.get("count"))
+            share_pct = self._to_float(entry.get("share_pct"))
+            if count <= 0 or share_pct <= 0:
+                continue
+            rows.append(
+                {
+                    "group": name,
+                    "count": count,
+                    "share_pct": round(share_pct, 2),
+                }
+            )
+
+        rows.sort(key=lambda row: (cast(float, row["share_pct"]), cast(int, row["count"])), reverse=True)
+        return rows[:limit]
 
     async def _resolve_geography(self, request: DemographicProfileRequest, sources: list[str]) -> Geography:
         if request.address:
@@ -251,6 +317,7 @@ class DemographicProfiler:
 
     async def _get_json(self, url: str, params: dict[str, str], sources: list[str]) -> Any:
         async with httpx.AsyncClient(timeout=20.0) as client:
+            await wait_for_outbound_slot()
             response = await client.get(url, params=params, follow_redirects=True)
             request_url = str(response.request.url)
             if request_url not in sources:
@@ -519,29 +586,12 @@ class DemographicProfiler:
         def cs(count: int) -> dict[str, int | float]:
             return {"count": count, "share_pct": round((count * 100) / denominator, 2)}
 
-        main_codes = {
-            "Evangelical Protestant": "EVANADH_2020",
-            "Mainline Protestant": "MPRTADH_2020",
-            "Black Protestant": "BPRTADH_2020",
-            "Catholic": "CATHADH_2020",
-            "Orthodox": "ORTHADH_2020",
-            "Other Religions": "OTHADH_2020",
-        }
-
+        # Load ALL religion denominations dynamically from ARDA data
         religion_output: dict[str, dict[str, int | float | dict[str, dict[str, int | float]]]] = {}
 
-        for category, code in main_codes.items():
-            count = self._to_int(row.get(code))
-            if count <= 0:
-                continue
-
-            religion_output[category] = {
-                **cs(count),
-                "subcategories": {},
-            }
-
+        # Iterate through ALL codes in the row that end with "ADH_2020"
         for code, value in row.items():
-            if code in {"FIPS", *main_codes.values(), "TOTADH_2020", "TOTCNG_2020", "TOTRATE_2020"}:
+            if code in {"FIPS", "TOTADH_2020", "TOTCNG_2020", "TOTRATE_2020"}:
                 continue
             if not code.endswith("ADH_2020"):
                 continue
@@ -550,6 +600,7 @@ class DemographicProfiler:
             if count <= 0:
                 continue
 
+            # Extract short code and resolve to full denomination name
             short_code = code.removesuffix("_2020").removesuffix("ADH")
             full_name = self._arda_code_to_name(short_code)
             if not full_name:
