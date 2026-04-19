@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { runOrchestration, type OrchestratedReport } from '@/lib/api';
+import { runOrchestration, type OrchestratedReport, runAgent1, runAgent2, type Agent1Output, type Agent2Output } from '@/lib/api';
 
 type StoreInfo = { name: string; zip: string; type: string };
 
@@ -15,12 +15,6 @@ const RACE_COLORS: Record<string, string> = {
   'American Indian and Alaska Native alone': 'bg-orange-400',
 };
 
-const RELIGION_COLORS = [
-  'bg-blue-50 text-blue-700',
-  'bg-indigo-50 text-indigo-700',
-  'bg-emerald-50 text-emerald-700',
-  'bg-amber-50 text-amber-700',
-];
 
 // ─── Demographics sub-components ─────────────────────────────────────────────
 
@@ -66,57 +60,10 @@ function EthnicityBar({ label, pct, color }: { label: string; pct: number; color
   );
 }
 
-function EthnicityDonut({ ethnicity }: { ethnicity: { label: string; pct: number; color: string }[] }) {
-  const top = ethnicity[0];
-  const pct = top?.pct ?? 0;
-  const r = 48;
-  const circ = 2 * Math.PI * r;
-  const filled = (pct / 100) * circ;
-
-  return (
-    <div className="flex flex-col items-center justify-center gap-2">
-      <div className="relative">
-        <svg width="130" height="130" viewBox="0 0 130 130">
-          <circle cx="65" cy="65" r={r} fill="none" stroke="#f1f5f9" strokeWidth="13" />
-          {filled > 0 && (
-            <circle
-              cx="65"
-              cy="65"
-              r={r}
-              fill="none"
-              stroke="#BA7517"
-              strokeWidth="13"
-              strokeDasharray={`${filled} ${circ - filled}`}
-              strokeLinecap="round"
-              transform="rotate(-90 65 65)"
-            />
-          )}
-          <text x="65" y="70" textAnchor="middle" fill="#0f172a" fontSize="22" fontWeight="700">
-            {pct}%
-          </text>
-        </svg>
-      </div>
-      {top && (
-        <p className="text-center text-xs font-semibold text-slate-700 leading-snug px-1">
-          {top.label}
-        </p>
-      )}
-      <div className="mt-1 space-y-1 w-full">
-        {ethnicity.slice(0, 3).map((e) => (
-          <div key={e.label} className="flex items-center gap-2 text-xs text-slate-500">
-            <span className={`h-2 w-2 shrink-0 rounded-full ${e.color}`} />
-            <span className="truncate">{e.label}</span>
-            <span className="ml-auto shrink-0">{e.pct}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ─── Step 0: Demographics ─────────────────────────────────────────────────────
 
-function DemographicsStep({ data }: { data: OrchestratedReport['agent1'] }) {
+function DemographicsStep({ data }: { data: Agent1Output }) {
   const ethnicity = Object.entries(data.race_demographics)
     .map(([key, val]) => ({
       rawKey: key,
@@ -131,8 +78,12 @@ function DemographicsStep({ data }: { data: OrchestratedReport['agent1'] }) {
   const religions = data.religion_demographics
     ? Object.entries(data.religion_demographics)
         .sort((a, b) => b[1].count - a[1].count)
-        .slice(0, 4)
-        .map(([label, val], i) => ({ label, count: val.count, bg: RELIGION_COLORS[i % RELIGION_COLORS.length] }))
+        .slice(0, 6)
+        .map(([label, val]) => ({
+          label,
+          count: val.count,
+          share_pct: Math.round(val.share_pct),
+        }))
     : [];
 
   const topGroup = ethnicity[0];
@@ -171,31 +122,49 @@ function DemographicsStep({ data }: { data: OrchestratedReport['agent1'] }) {
         <DemoStatCard label="Primary Language" value={data.primary_language} />
       </div>
 
-      {/* ── Race/Ethnicity + Donut ── */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_200px]">
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-700">Race & Ethnicity</p>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-              {data.geography_coverage.coverage_id}
-            </span>
+      {/* ── Religion (middle — expanded & highlighted) ── */}
+      <div className="mt-4 rounded-2xl border border-brand-200 bg-brand-50 p-6 shadow-sm">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Religious Communities</p>
+            <h3 className="mt-1 text-lg font-bold text-slate-900">Faith Landscape</h3>
           </div>
-          <div className="space-y-3">
-            {ethnicity.map((e) => (
-              <EthnicityBar key={e.rawKey} label={e.label} pct={e.pct} color={e.color} />
-            ))}
-          </div>
+          <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-medium text-brand-700 ring-1 ring-brand-200">
+            {religions.length} groups · {data.geography_coverage.coverage_id}
+          </span>
         </div>
 
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <p className="mb-3 self-start text-sm font-semibold text-slate-700">Largest Group</p>
-          <EthnicityDonut ethnicity={ethnicity} />
-        </div>
+        {religions.length > 0 ? (
+          <div className="space-y-2.5">
+            {religions.map((r) => {
+              const maxCount = religions[0].count;
+              const barPct = Math.round((r.count / maxCount) * 100);
+              return (
+                <div key={r.label} className="flex items-center gap-4">
+                  <div className="w-40 shrink-0 text-right text-xs font-semibold text-slate-700 truncate">{r.label}</div>
+                  <div className="relative flex-1 h-7 rounded-full bg-brand-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-brand-500 transition-all duration-700"
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                  <div className="w-28 shrink-0 text-xs text-slate-500">
+                    <span className="font-semibold text-slate-700">{r.count.toLocaleString()}</span> congregations
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">No religion data available for this area.</p>
+        )}
+
+        <p className="mt-4 text-xs text-slate-400">Congregations in coverage area · ARDA dataset</p>
       </div>
 
-      {/* ── Bottom row: secondary stats + religion + insight ── */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        {/* Households & density */}
+      {/* ── Bottom row: Area Stats | Race & Ethnicity | Insight ── */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-[200px_1fr_220px]">
+        {/* Area Stats */}
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold text-slate-700">Area Stats</p>
           <div className="mt-4 space-y-4">
@@ -220,27 +189,22 @@ function DemographicsStep({ data }: { data: OrchestratedReport['agent1'] }) {
           </div>
         </div>
 
-        {/* Religion */}
-        {religions.length > 0 ? (
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="mb-3 text-sm font-semibold text-slate-700">Religious Communities</p>
-            <div className="grid grid-cols-2 gap-2">
-              {religions.map((r) => (
-                <div key={r.label} className={`rounded-xl px-3 py-3 ${r.bg}`}>
-                  <p className="text-xl font-bold">{r.count}</p>
-                  <p className="mt-0.5 text-xs leading-tight opacity-80">{r.label}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-slate-400">Congregations in coverage area</p>
+        {/* Race & Ethnicity (moved to bottom middle) */}
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-700">Race & Ethnicity</p>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+              {data.geography_coverage.coverage_id}
+            </span>
           </div>
-        ) : (
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex items-center justify-center">
-            <p className="text-xs text-slate-300">No religion data available</p>
+          <div className="space-y-3">
+            {ethnicity.map((e) => (
+              <EthnicityBar key={e.rawKey} label={e.label} pct={e.pct} color={e.color} />
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* Dark green insight card */}
+        {/* Insight */}
         <div className="flex flex-col justify-between rounded-2xl bg-brand-900 p-5 text-white shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-brand-300">Agent Insight</p>
@@ -258,68 +222,121 @@ function DemographicsStep({ data }: { data: OrchestratedReport['agent1'] }) {
 
 // ─── Step 1: Product Mix ──────────────────────────────────────────────────────
 
-function ProductMixStep({ data }: { data: OrchestratedReport['agent2'] }) {
-  const cats = data.categories.map((c, i) => ({
-    id: `cat-${i}`,
-    label: c.category,
-    score: Math.round(c.score * 100),
-    reason: c.rationale,
-  }));
-
-  const [selected, setSelected] = useState<Set<string>>(
-    new Set(cats.filter((c) => c.score >= 70).map((c) => c.id))
-  );
-
-  const toggle = (id: string) => {
-    const next = new Set(selected);
-    next.has(id) ? next.delete(id) : next.add(id);
-    setSelected(next);
-  };
+function ProductMixStep({ data, profile }: { data: Agent2Output; profile: Agent1Output }) {
+  // Build top-3 products per race
+  const raceProducts: { race: string; pct: number; products: string[] }[] = Object.entries(profile.race_demographics)
+    .map(([race, val]) => ({ race, pct: Math.round(val.share_pct) }))
+    .filter((r) => r.pct >= 1)
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 5)
+    .map(({ race, pct }) => {
+      const shortRace = race.replace(' alone', '').replace(' (any race)', '').toLowerCase();
+      const products: string[] = [];
+      const seen = new Set<string>();
+      for (const cat of data.categories) {
+        const driverMatch = cat.drivers.some((d) => d.toLowerCase().includes(shortRace) || shortRace.includes(d.toLowerCase().split(' ')[0]));
+        const rationaleMatch = cat.rationale.toLowerCase().includes(shortRace);
+        if (driverMatch || rationaleMatch) {
+          for (const item of cat.evidence) {
+            if (!seen.has(item) && products.length < 3) { seen.add(item); products.push(item); }
+          }
+        }
+        if (products.length >= 3) break;
+      }
+      // fallback: fill from any category if no specific match
+      if (products.length < 3) {
+        for (const cat of data.categories) {
+          for (const item of cat.evidence) {
+            if (!seen.has(item) && products.length < 3) { seen.add(item); products.push(item); }
+          }
+          if (products.length >= 3) break;
+        }
+      }
+      return { race: race.replace(' alone', '').replace(' (any race)', ''), pct, products };
+    });
 
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Agent 02 — Buying Behavior Suggester</p>
       <h2 className="mt-1 text-2xl font-bold text-slate-900">Product Mix</h2>
       <p className="mt-1 text-sm text-slate-500">
-        AI-ranked categories based on your ZIP demographics and CEX data. Click to include or exclude.
+        Categories based on your ZIP's demographic and religious community data.
       </p>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        {[...cats].sort((a, b) => b.score - a.score).map((cat, i) => {
-          const on = selected.has(cat.id);
-          return (
-            <button
-              key={cat.id}
-              onClick={() => toggle(cat.id)}
-              className={`rounded-xl border p-4 text-left transition-all ${
-                on ? 'border-brand-300 bg-brand-50 shadow-sm' : 'border-slate-200 bg-white opacity-50 hover:opacity-70'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 shrink-0 text-xs text-slate-300">#{i + 1}</span>
-                    <span className={`text-sm font-semibold ${on ? 'text-slate-800' : 'text-slate-400'}`}>
-                      {cat.label}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 pl-7 text-xs leading-relaxed text-slate-400">{cat.reason}</p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className={`text-lg font-bold ${cat.score >= 80 ? 'text-brand-600' : 'text-slate-600'}`}>
-                    {cat.score}
+      {/* ── Top 3 products per race ── */}
+      {raceProducts.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-brand-200 bg-brand-50 p-5">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-brand-600">
+            Top Products by Race &amp; Ethnicity
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {raceProducts.map((r) => (
+              <div key={r.race} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-brand-100">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-slate-800 leading-snug">{r.race}</p>
+                  <span className="shrink-0 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-700">
+                    {r.pct}%
                   </span>
-                  <p className="text-xs text-slate-300">score</p>
+                </div>
+                <div className="space-y-1.5">
+                  {r.products.map((p, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-brand-300">{i + 1}</span>
+                      <span className="text-xs text-slate-700">{p}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </button>
-          );
-        })}
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        {data.categories.map((cat, i) => (
+          <div key={i} className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 shrink-0 text-xs font-bold text-slate-300">#{i + 1}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-slate-800">{cat.category}</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">{cat.rationale}</p>
+              </div>
+            </div>
+
+            {cat.drivers.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Drivers</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {cat.drivers.map((d, j) => (
+                    <span key={j} className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-brand-200">
+                      {d}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {cat.evidence.length > 0 && (
+              <div className="mt-3">
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Suggested Items</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {cat.evidence.map((item, j) => (
+                    <span key={j} className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {cat.source && (
+              <p className="mt-auto pt-4 text-xs text-slate-300">Source: {cat.source}</p>
+            )}
+          </div>
+        ))}
       </div>
 
-      <p className="mt-4 text-xs text-slate-400">
-        {selected.size} of {cats.length} categories selected &middot; Score = demand confidence (0–100)
-      </p>
+      <p className="mt-4 text-xs text-slate-400">{data.categories.length} categories</p>
     </div>
   );
 }
@@ -513,17 +530,17 @@ function AutoRunLoader({
 const steps = [
   { id: 0, label: 'Demographics' },
   { id: 1, label: 'Product Mix' },
-  { id: 2, label: 'Holidays' },
-  { id: 3, label: 'Vendors' },
 ];
 
 function WizardInner() {
   const params = useSearchParams();
   const [step, setStep] = useState(0);
   const [store, setStore] = useState<StoreInfo>({ name: '', zip: '', type: '' });
-  const [autoRunning, setAutoRunning] = useState(false);
-  const [report, setReport] = useState<OrchestratedReport | null>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [agent1Data, setAgent1Data] = useState<Agent1Output | null>(null);
+  const [agent2Data, setAgent2Data] = useState<Agent2Output | null>(null);
+  const [runningAgent1, setRunningAgent1] = useState(false);
+  const [runningAgent2, setRunningAgent2] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const name = params.get('store');
@@ -531,20 +548,28 @@ function WizardInner() {
     const type = params.get('type');
     if (name && zip) {
       setStore({ name, zip, type: type ?? '' });
-      setAutoRunning(true);
     }
   }, [params]);
 
-  const handleReportDone = useCallback((data: OrchestratedReport) => {
-    setReport(data);
-    setAutoRunning(false);
-    setStep(0);
-  }, []);
+  useEffect(() => {
+    if (store.zip && !agent1Data && !runningAgent1 && !error) {
+      setRunningAgent1(true);
+      runAgent1(store.zip)
+        .then(setAgent1Data)
+        .catch(err => setError(err.message))
+        .finally(() => setRunningAgent1(false));
+    }
+  }, [store.zip, agent1Data, runningAgent1, error]);
 
-  const handleReportError = useCallback((err: string) => {
-    setApiError(err);
-    setAutoRunning(false);
-  }, []);
+  const runAgent2Handler = () => {
+    if (agent1Data && !runningAgent2) {
+      setRunningAgent2(true);
+      runAgent2(agent1Data)
+        .then((data) => { setAgent2Data(data); setStep(1); })
+        .catch(err => setError(err.message))
+        .finally(() => setRunningAgent2(false));
+    }
+  };
 
   const hasStore = store.name && store.zip;
 
@@ -556,8 +581,8 @@ function WizardInner() {
           {steps.map((s, i) => (
             <div key={s.id} className="flex flex-1 items-center">
               <button
-                onClick={() => report && setStep(s.id)}
-                disabled={!report || s.id === step}
+                onClick={() => (agent1Data && s.id <= (agent2Data ? 1 : 0)) && setStep(s.id)}
+                disabled={!(agent1Data && s.id <= (agent2Data ? 1 : 0)) || s.id === step}
                 className="flex flex-col items-center gap-1.5 disabled:cursor-default"
               >
                 <span
@@ -587,7 +612,7 @@ function WizardInner() {
         </div>
 
         {/* No store selected */}
-        {!hasStore && !autoRunning && !report && !apiError && (
+        {!hasStore && (
           <div className="flex flex-col items-center py-16 text-center">
             <p className="text-slate-500">No store selected.</p>
             <Link
@@ -600,15 +625,16 @@ function WizardInner() {
         )}
 
         {/* Error state */}
-        {apiError && (
+        {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-            <p className="font-semibold text-red-700">Could not load report</p>
-            <p className="mt-1 text-sm text-slate-500">{apiError}</p>
+            <p className="font-semibold text-red-700">Could not load data</p>
+            <p className="mt-1 text-sm text-slate-500">{error}</p>
             <div className="mt-4 flex justify-center gap-3">
               <button
                 onClick={() => {
-                  setApiError(null);
-                  setAutoRunning(true);
+                  setError(null);
+                  setAgent1Data(null);
+                  setAgent2Data(null);
                 }}
                 className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
               >
@@ -626,42 +652,52 @@ function WizardInner() {
 
         {/* Step content */}
         <div className="min-h-96">
-          {autoRunning && (
-            <AutoRunLoader store={store} onDone={handleReportDone} onError={handleReportError} />
+          {runningAgent1 && (
+            <div className="mx-auto max-w-md py-16">
+              <p className="text-sm font-semibold text-slate-500">Running Agent 1 for</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-900">{store.name}</h2>
+              <p className="mt-0.5 text-sm text-slate-400">
+                ZIP {store.zip} &middot; {store.type}
+              </p>
+              <div className="mt-8 space-y-3">
+                <div className="flex items-center gap-3 text-sm text-brand-600">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
+                  Fetching Census demographic data...
+                </div>
+              </div>
+            </div>
           )}
-          {!autoRunning && !apiError && report && step === 0 && (
-            <DemographicsStep data={report.agent1} />
+          {!runningAgent1 && !error && agent1Data && step === 0 && (
+            <div>
+              <DemographicsStep data={agent1Data} />
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={runAgent2Handler}
+                  disabled={runningAgent2}
+                  className="rounded-full bg-brand-600 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {runningAgent2 ? 'Running Agent 2...' : 'Run Agent 2'}
+                </button>
+              </div>
+            </div>
           )}
-          {!autoRunning && !apiError && report && step === 1 && <ProductMixStep data={report.agent2} />}
-          {!autoRunning && !apiError && report && step === 2 && (
-            <HolidayCalendarStep data={report.agent3} />
+          {runningAgent2 && (
+            <div className="mx-auto max-w-md py-16">
+              <p className="text-sm font-semibold text-slate-500">Running Agent 2 for</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-900">{store.name}</h2>
+              <p className="mt-0.5 text-sm text-slate-400">
+                ZIP {store.zip} &middot; {store.type}
+              </p>
+              <div className="mt-8 space-y-3">
+                <div className="flex items-center gap-3 text-sm text-brand-600">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
+                  Loading CEX buying behavior scores...
+                </div>
+              </div>
+            </div>
           )}
-          {!autoRunning && !apiError && report && step === 3 && <VendorStep data={report.agent4} />}
+          {!runningAgent2 && !error && agent2Data && agent1Data && step === 1 && <ProductMixStep data={agent2Data} profile={agent1Data} />}
         </div>
-
-        {/* Back / Next */}
-        {!autoRunning && !apiError && report && (
-          <div className="mt-8 flex justify-between border-t border-slate-200 pt-6">
-            {step > 0 ? (
-              <button
-                onClick={() => setStep((s) => s - 1)}
-                className="rounded-full border border-slate-200 px-5 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
-              >
-                &larr; Back
-              </button>
-            ) : (
-              <div />
-            )}
-            {step < 3 && (
-              <button
-                onClick={() => setStep((s) => s + 1)}
-                className="rounded-full bg-brand-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-              >
-                Next: {steps[step + 1].label} &rarr;
-              </button>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

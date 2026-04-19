@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001';
 
 // ─── Types mirroring backend Pydantic models ──────────────────────────────────
 
@@ -33,8 +33,30 @@ export type Agent1Output = {
   sources: string[];
 };
 
-export type Agent2Category = { category: string; score: number; rationale: string };
-export type Agent2Output = { categories: Agent2Category[] };
+export type Agent2Category = {
+  category: string;
+  rationale: string;
+  drivers: string[];
+  evidence: string[];
+  source: string;
+  source_links: string[];
+};
+
+export type Agent2Signal = {
+  dimension: string;
+  label: string;
+  share_pct: number;
+  confidence: string;
+  rationale: string;
+  source: string;
+};
+
+export type Agent2Output = {
+  location: string;
+  top_signals: Agent2Signal[];
+  categories: Agent2Category[];
+  data_gaps: string[];
+};
 
 export type Agent3Signal = {
   holiday: string;
@@ -76,6 +98,36 @@ export async function runOrchestration(zip: string): Promise<OrchestratedReport>
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`API error ${res.status}${text ? ': ' + text : ''}`);
+  }
+
+  return res.json();
+}
+
+export async function runAgent1(zip: string): Promise<Agent1Output> {
+  const res = await fetch(`${API_BASE}/agents/agent-1/profile`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ zip_code: zip }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Agent1 API error ${res.status}${text ? ': ' + text : ''}`);
+  }
+
+  return res.json();
+}
+
+export async function runAgent2(profile: Agent1Output): Promise<Agent2Output> {
+  const res = await fetch(`${API_BASE}/agents/agent-2/suggest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profile }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Agent2 API error ${res.status}${text ? ': ' + text : ''}`);
   }
 
   return res.json();
