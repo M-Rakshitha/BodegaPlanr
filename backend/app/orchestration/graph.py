@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
-from app.agents.agent1.models import DemographicProfileRequest
+from app.agents.agent1.models import DemographicProfileRequest, DemographicProfileResponse
 from app.agents.agent1.service import DemographicProfiler
+from app.agents.agent2.service import BuyingBehaviorSuggester
+from app.rate_limit import set_gemini_cooldown, set_outbound_cooldown, wait_for_gemini_slot, wait_for_outbound_slot
 from app.orchestration.models import (
     Agent2Output,
     Agent3Output,
@@ -74,48 +77,8 @@ async def _agent1_node(state: GraphState) -> GraphState:
 
 async def _agent2_node(state: GraphState) -> GraphState:
     agent1 = state["agent1"]
-    race = agent1.get("race_demographics", {})
-    age = agent1.get("age_groups", {})
-
-    categories = [
-        {
-            "category": "Rice & grains",
-            "score": 0.78,
-            "rationale": "Baseline staple category for dense urban ZIP demand.",
-        },
-        {
-            "category": "Ready-to-drink beverages",
-            "score": 0.74,
-            "rationale": "High convenience-store velocity across broad age distribution.",
-        },
-    ]
-
-    top_asian = race.get("Asian alone", {}).get("share_pct", 0)
-    youth_share = age.get("10-19", {}).get("share_pct", 0)
-
-    if top_asian >= 10:
-        categories.append(
-            {
-                "category": "Asian pantry staples",
-                "score": 0.82,
-                "rationale": "Elevated Asian population share suggests demand for culturally specific staples.",
-            }
-        )
-
-    if youth_share >= 10:
-        categories.append(
-            {
-                "category": "Snacks & impulse sweets",
-                "score": 0.71,
-                "rationale": "Teen share supports impulse-snack assortment depth.",
-            }
-        )
-
-    llm_output, model_name = await _maybe_gemini_refine_categories(agent1, categories)
-    if llm_output:
-        return {"agent2": {"categories": llm_output}, "llm_model": model_name}
-
-    return {"agent2": {"categories": categories}, "llm_model": model_name}
+    suggestion = await BuyingBehaviorSuggester().suggest(DemographicProfileResponse.model_validate(agent1))
+    return {"agent2": {"categories": [category.model_dump() for category in suggestion.categories]}, "llm_model": state.get("llm_model")}
 
 
 async def _agent3_node(state: GraphState) -> GraphState:
@@ -170,11 +133,22 @@ async def _maybe_gemini_refine_categories(
     agent1_payload: dict[str, Any],
     categories: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]] | None, str | None]:
+    def _extract_retry_after_seconds(message: str) -> float | None:
+        retry_in_match = re.search(r"retry in\s+([0-9]+(?:\.[0-9]+)?)s", message, flags=re.IGNORECASE)
+        if retry_in_match:
+            return float(retry_in_match.group(1))
+
+        retry_delay_match = re.search(r"retry_delay\s*\{\s*seconds:\s*([0-9]+)", message, flags=re.IGNORECASE)
+        if retry_delay_match:
+            return float(retry_delay_match.group(1))
+
+        return None
+
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         return None, None
 
-    model_name = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
 
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
@@ -190,12 +164,22 @@ async def _maybe_gemini_refine_categories(
     )
 
     try:
-        llm = ChatGoogleGenerativeAI(model=model_name, temperature=0.2, api_key=api_key)
+        llm = ChatGoogleGenerativeAI(model=model_name, temperature=0.2, api_key=cast(Any, api_key), max_retries=0)
+        await wait_for_gemini_slot()
+        await wait_for_outbound_slot()
         response = await llm.ainvoke(prompt)
-        parsed = json.loads(response.content)
+        content = response.content if isinstance(response.content, str) else ""
+        parsed = json.loads(content)
         if isinstance(parsed, list) and parsed:
             return parsed, model_name
-    except Exception:
+    except Exception as error:
+        msg = str(error)
+        lowered = msg.lower()
+        if "resourceexhausted" in lowered or "quota exceeded" in lowered or "429" in lowered:
+            retry_after = _extract_retry_after_seconds(msg)
+            wait_seconds = max(1.0, retry_after if retry_after is not None else 60.0) + 1.0
+            await set_outbound_cooldown(wait_seconds)
+            await set_gemini_cooldown(wait_seconds)
         return None, model_name
 
     return None, model_name
