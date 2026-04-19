@@ -48,9 +48,18 @@ class SlidingWindowRateLimiter:
             self._cooldown_until = max(self._cooldown_until, now + seconds)
 
 
-OUTBOUND_API_MAX_REQUESTS_PER_MINUTE = int(os.getenv("OUTBOUND_API_MAX_REQUESTS_PER_MINUTE", "13"))
+def _read_rate_limit_per_minute(env_name: str, default_value: int = 13) -> int:
+    raw = os.getenv(env_name, str(default_value)).strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        value = default_value
+    return max(1, min(13, value))
+
+
+OUTBOUND_API_MAX_REQUESTS_PER_MINUTE = _read_rate_limit_per_minute("OUTBOUND_API_MAX_REQUESTS_PER_MINUTE", 13)
 OUTBOUND_API_WINDOW_SECONDS = 60.0
-GEMINI_MAX_REQUESTS_PER_MINUTE = int(os.getenv("GEMINI_MAX_REQUESTS_PER_MINUTE", "13"))
+GEMINI_MAX_REQUESTS_PER_MINUTE = _read_rate_limit_per_minute("GEMINI_MAX_REQUESTS_PER_MINUTE", 13)
 GEMINI_WINDOW_SECONDS = 60.0
 
 _outbound_limiter = SlidingWindowRateLimiter(

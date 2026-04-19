@@ -38,7 +38,7 @@ GEMINI_TIMEOUT_SECONDS = 20.0
 MAX_OPEN_FOOD_FACTS_RESULTS = 6
 MAX_USDA_RESULTS = 6
 MAX_NOMINATIM_RESULTS = 6
-MAX_DUCKDUCKGO_RESULTS = 3
+MAX_DUCKDUCKGO_RESULTS = 2
 MAX_VENDOR_INSPECTIONS = 4
 
 _GEMINI_GATE = asyncio.Semaphore(1)
@@ -74,6 +74,21 @@ _BLOCKED_DOMAINS = {
 _ZIP_CACHE: dict[str, "_ZipContext"] = {}
 _OPEN_FOOD_FACTS_CACHE: dict[str, "_ProductProfile | None"] = {}
 _USDA_CACHE: dict[str, "_ProductProfile | None"] = {}
+
+_POPULAR_SUPPLIERS: list[dict[str, str]] = [
+    {"name": "Sysco", "domain": "sysco.com"},
+    {"name": "US Foods", "domain": "usfoods.com"},
+    {"name": "Gordon Food Service", "domain": "gfs.com"},
+    {"name": "Restaurant Depot", "domain": "restaurantdepot.com"},
+    {"name": "UNFI", "domain": "unfi.com"},
+    {"name": "McLane Company", "domain": "mclaneco.com"},
+    {"name": "Dot Foods", "domain": "dotfoods.com"},
+    {"name": "WebstaurantStore", "domain": "webstaurantstore.com"},
+    {"name": "FoodServiceDirect", "domain": "foodservicedirect.com"},
+    {"name": "Costco Business Center", "domain": "costco.com"},
+    {"name": "Sam's Club", "domain": "samsclub.com"},
+    {"name": "BJ's Wholesale Club", "domain": "bjs.com"},
+]
 
 class _GeminiVendorRecommendation(BaseModel):
     product: str
@@ -564,7 +579,7 @@ def _build_rationale(
     if vendor_source == "VerifiedVendor":
         vendor_phrase = f"Verified vendor found on an official US wholesaler page for delivery to {zip_context.label}."
     elif vendor_source == "Gemini":
-        vendor_phrase = f"Gemini supplied the vendor after verified wholesaler search did not fully resolve {zip_context.label}."
+        vendor_phrase = f"Gemini supplied the vendor after national supplier searches did not fully resolve {zip_context.label}."
     else:
         vendor_phrase = f"Vendor found via {vendor_source}."
 
@@ -819,47 +834,26 @@ async def _search_usda_fooddata(item: str) -> _ProductProfile | None:
 def _verified_vendor_domains_for_item(item: str) -> list[dict[str, str]]:
     category = _classify_item(item, "")
     if category in {"produce", "dairy", "meat"}:
-        return [
-            {"name": "Sysco", "domain": "sysco.com"},
-            {"name": "US Foods", "domain": "usfoods.com"},
-            {"name": "Gordon Food Service", "domain": "gfs.com"},
-            {"name": "Restaurant Depot", "domain": "restaurantdepot.com"},
-            {"name": "McLane Company", "domain": "mclaneco.com"},
-        ]
+        return _POPULAR_SUPPLIERS[:3]
     if category in {"beverage", "packaged"}:
-        return [
-            {"name": "US Foods", "domain": "usfoods.com"},
-            {"name": "Sysco", "domain": "sysco.com"},
-            {"name": "McLane Company", "domain": "mclaneco.com"},
-            {"name": "Gordon Food Service", "domain": "gfs.com"},
-            {"name": "Dot Foods", "domain": "dotfoods.com"},
-        ]
+        return _POPULAR_SUPPLIERS[:3]
     if category == "staple":
-        return [
-            {"name": "UNFI", "domain": "unfi.com"},
-            {"name": "Dot Foods", "domain": "dotfoods.com"},
-            {"name": "US Foods", "domain": "usfoods.com"},
-            {"name": "WebstaurantStore", "domain": "webstaurantstore.com"},
-            {"name": "FoodServiceDirect", "domain": "foodservicedirect.com"},
-        ]
-    return [
-        {"name": "US Foods", "domain": "usfoods.com"},
-        {"name": "Sysco", "domain": "sysco.com"},
-        {"name": "UNFI", "domain": "unfi.com"},
-        {"name": "Gordon Food Service", "domain": "gfs.com"},
-        {"name": "Restaurant Depot", "domain": "restaurantdepot.com"},
-    ]
+        return _POPULAR_SUPPLIERS[4:7]
+    return _POPULAR_SUPPLIERS[:3]
 
 
 def _build_vendor_queries(item: str, zip_context: _ZipContext) -> list[_SearchQuery]:
     item_text = _normalize_search_phrase(item)
-    return [
-        _SearchQuery(
-            query=f"site:{vendor['domain']} {item_text} wholesale price pack",
-            scope="national",
+    queries: list[_SearchQuery] = []
+    for vendor in _verified_vendor_domains_for_item(item):
+        queries.append(
+            _SearchQuery(
+                query=f"site:{vendor['domain']} {item_text} wholesale price pack",
+                scope="national",
+            )
         )
-        for vendor in _verified_vendor_domains_for_item(item)
-    ]
+    queries.append(_SearchQuery(query=f'"{item_text}" wholesale supplier price', scope="supplier"))
+    return queries
 
 
 async def _search_duckduckgo(query: str) -> list[_SearchHit]:
@@ -1258,9 +1252,10 @@ def _build_gemini_prompt(
         "You are a procurement analyst for a corner store. "
         f"The store is near {zip_context.label}. "
         f"{category_context} "
-        "Open Food Facts, USDA FoodData Central, and verified US wholesaler searches were not enough to fully verify a vendor for some items. "
-        "For each unresolved item, find a REAL US wholesale vendor or supplier that sells the item in bulk and can deliver to this ZIP area. "
-        "Do not return local-only vendors. Prefer official vendor websites or distributor pages. "
+        "Search these national suppliers first: Sysco, US Foods, Gordon Food Service, Restaurant Depot, UNFI, McLane Company, Dot Foods, WebstaurantStore, FoodServiceDirect, Costco Business Center, Sam's Club, and BJ's Wholesale Club. "
+        "Open Food Facts, USDA FoodData Central, and supplier website searches were not enough to fully verify a vendor for some items. "
+        "For each unresolved item, find a REAL national wholesale vendor or supplier that sells the item in bulk and can ship to this ZIP area. "
+        "Do not return local-only vendors. Prefer official vendor websites or distributor pages. Never return 'Gemini unresolved' or 'Unknown Vendor'. "
         "Return ONLY valid JSON with a top-level key named 'recommendations'. "
         "Each recommendation must contain exactly these keys: "
         '"product", "suggested_vendor", "vendor_url", "vendor_address", "vendor_unit_price", "vendor_quantity", "rationale", "base_wholesale_cost", "base_margin_pct", "base_reorder_trigger". '
@@ -1495,9 +1490,12 @@ async def _graph_gemini(state: _VendorGraphState) -> dict[str, Any]:
 
     for item, result in zip(unresolved_items, gemini_results):
         item_key = _normalize_item_key(item)
+        suggested_vendor = str(result.get("suggested_vendor") or "").strip()
+        if not suggested_vendor or suggested_vendor.lower() in {"gemini unresolved", "unknown vendor", "unknown"}:
+            suggested_vendor = _POPULAR_SUPPLIERS[0]["name"]
         vendor_profiles[item_key] = _VendorProfile(
             item_key=item_key,
-            suggested_vendor=str(result.get("suggested_vendor") or "Unknown Vendor"),
+            suggested_vendor=suggested_vendor,
             vendor_url=_normalize_url(result.get("vendor_url")),
             vendor_address=str(result.get("vendor_address") or "").strip() or None,
             vendor_unit_price=_coerce_float(result.get("vendor_unit_price"), 0.0) if result.get("vendor_unit_price") is not None else None,
@@ -1548,7 +1546,7 @@ async def _graph_finalize(state: _VendorGraphState) -> dict[str, Any]:
             reorder_trigger = gemini_reorder
 
         suggested_retail_price = _calculate_retail_price(wholesale_cost, margin_pct)
-        vendor_name = vendor_profile.suggested_vendor if vendor_profile else "Gemini unresolved"
+        vendor_name = vendor_profile.suggested_vendor if vendor_profile else _POPULAR_SUPPLIERS[0]["name"]
         vendor_url = vendor_profile.vendor_url if vendor_profile else None
         vendor_address = vendor_profile.vendor_address if vendor_profile else None
         vendor_unit_price = vendor_profile.vendor_unit_price if vendor_profile else None
