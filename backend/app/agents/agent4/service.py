@@ -13,8 +13,7 @@ from typing import Any, TypedDict
 from urllib.parse import parse_qs, unquote, urlparse, urlunparse
 
 import httpx
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from pydantic import BaseModel, Field
 
 from app.agents.agent4.models import Agent4Output, Agent4Request, Agent4Recommendation
